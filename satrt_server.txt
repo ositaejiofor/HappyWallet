@@ -1,0 +1,20 @@
+
+ ON USB DRIVE
+cd /d/ Name of your wallet
+        
+DJANGO_SETTINGS_MODULE=config.settings.development ./.venv/Scripts/python.exe -m django runserver 127.0.0.1:9000 --noreload
+
+OR
+
+python start_wallet.py --settings portable
+
+
+ON DESKTOP
+
+python start_wallet.py
+
+./.venv/Scripts/python.exe manage.py runserver 9000
+
+     OR
+     
+ python manage.py runserver 127.0.0.1:9000

@@ -1,0 +1,834 @@
+{% extends "base.html" %}
+
+{% block title %}{{ asset.name }} | Market | HappyWallet{% endblock %}
+
+{% block meta_description %}
+{{ asset.name }} ({{ asset.symbol|upper }}) market information on HappyWallet.
+{% endblock %}
+
+
+{% block extra_css %}
+
+<style>
+
+    /* =========================================================
+       MARKET ASSET DETAIL
+    ========================================================== */
+
+    .asset-detail-page {
+        padding-top: 2rem;
+        padding-bottom: 4rem;
+    }
+
+
+    /* =========================================================
+       NAVIGATION
+    ========================================================== */
+
+    .asset-detail-back {
+        margin-bottom: 1.75rem;
+    }
+
+    .asset-detail-back a {
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+
+    /* =========================================================
+       ASSET HEADER
+    ========================================================== */
+
+    .asset-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .asset-header__image,
+    .asset-header__fallback {
+        width: 64px;
+        height: 64px;
+        flex-shrink: 0;
+    }
+
+    .asset-header__image {
+        object-fit: contain;
+    }
+
+    .asset-header__fallback {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #f3f4f6;
+        color: #374151;
+        font-size: 1.4rem;
+        font-weight: 700;
+    }
+
+    .asset-header__name {
+        margin: 0;
+        font-size: 1.75rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+    }
+
+    .asset-header__symbol {
+        display: block;
+        margin-top: 0.2rem;
+        color: #6b7280;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+
+    /* =========================================================
+       PRICE CARD
+    ========================================================== */
+
+    .asset-price-card {
+        height: 100%;
+        border: 1px solid #e5e7eb;
+        border-radius: 1rem;
+        background: #ffffff;
+        box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.04);
+    }
+
+    .asset-price-card__body {
+        padding: 1.5rem;
+    }
+
+    .asset-price-card__label {
+        margin-bottom: 0.35rem;
+        color: #6b7280;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .asset-price-card__price {
+        margin-bottom: 0.5rem;
+        font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1.1;
+        letter-spacing: -0.03em;
+        word-break: break-word;
+    }
+
+
+    /* =========================================================
+       PRICE CHANGE
+    ========================================================== */
+
+    .asset-change {
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    .asset-change--positive {
+        color: #198754;
+    }
+
+    .asset-change--negative {
+        color: #dc3545;
+    }
+
+    .asset-change--neutral {
+        color: #6b7280;
+    }
+
+
+    /* =========================================================
+       STATISTICS
+    ========================================================== */
+
+    .asset-stat-card {
+        height: 100%;
+        padding: 1.25rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 1rem;
+        background: #ffffff;
+        transition:
+            transform 0.2s ease,
+            box-shadow 0.2s ease;
+    }
+
+    .asset-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.06);
+    }
+
+    .asset-stat-card__label {
+        margin-bottom: 0.4rem;
+        color: #6b7280;
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .asset-stat-card__value {
+        font-size: 1.05rem;
+        font-weight: 600;
+        line-height: 1.4;
+        word-break: break-word;
+    }
+
+
+    /* =========================================================
+       SECTION HEADERS
+    ========================================================== */
+
+    .asset-section {
+        margin-top: 2rem;
+    }
+
+    .asset-section__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .asset-section__title {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+
+
+    /* =========================================================
+       CHART
+    ========================================================== */
+
+    .asset-chart {
+        min-height: 320px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        border: 1px dashed #d1d5db;
+        border-radius: 1rem;
+        background: #f9fafb;
+        text-align: center;
+    }
+
+    .asset-chart__title {
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+    }
+
+    .asset-chart__text {
+        max-width: 520px;
+        margin: 0 auto;
+        color: #6b7280;
+    }
+
+
+    /* =========================================================
+       ASSET INFORMATION
+    ========================================================== */
+
+    .asset-information {
+        padding: 1.5rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 1rem;
+        background: #ffffff;
+    }
+
+    .asset-information__row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1.5rem;
+        padding: 0.9rem 0;
+        border-bottom: 1px solid #f1f3f5;
+    }
+
+    .asset-information__row:first-child {
+        padding-top: 0;
+    }
+
+    .asset-information__row:last-child {
+        padding-bottom: 0;
+        border-bottom: 0;
+    }
+
+    .asset-information__label {
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    .asset-information__value {
+        font-weight: 600;
+        text-align: right;
+        word-break: break-word;
+    }
+
+
+    /* =========================================================
+       EMPTY STATE
+    ========================================================== */
+
+    .asset-empty {
+        padding: 2.5rem 1.5rem;
+        border: 1px dashed #d1d5db;
+        border-radius: 1rem;
+        background: #f9fafb;
+        text-align: center;
+    }
+
+    .asset-empty__title {
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+    }
+
+    .asset-empty__text {
+        margin-bottom: 0;
+        color: #6b7280;
+    }
+
+
+    /* =========================================================
+       RESPONSIVE
+    ========================================================== */
+
+    @media (max-width: 576px) {
+
+        .asset-detail-page {
+            padding-top: 1.25rem;
+        }
+
+        .asset-header {
+            align-items: flex-start;
+        }
+
+        .asset-header__image,
+        .asset-header__fallback {
+            width: 52px;
+            height: 52px;
+        }
+
+        .asset-header__name {
+            font-size: 1.4rem;
+        }
+
+        .asset-price-card__price {
+            font-size: 2rem;
+        }
+
+        .asset-information__row {
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .asset-information__value {
+            text-align: left;
+        }
+
+        .asset-section__header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+    }
+
+</style>
+
+{% endblock %}
+
+
+{% block content %}
+
+<section class="container asset-detail-page">
+
+    <!-- =========================================================
+         BACK TO MARKET
+    ========================================================== -->
+
+    <div class="asset-detail-back">
+
+        <a
+            href="{% url 'market:home' %}"
+            class="btn btn-sm btn-outline-secondary"
+            aria-label="Back to cryptocurrency market"
+        >
+            ← Back to Market
+        </a>
+
+    </div>
+
+
+    <!-- =========================================================
+         ASSET HEADER
+    ========================================================== -->
+
+    <header class="asset-header">
+
+        {% if asset.image_url %}
+
+            <img
+                src="{{ asset.image_url }}"
+                alt="{{ asset.name }} logo"
+                class="asset-header__image"
+                width="64"
+                height="64"
+                loading="eager"
+            >
+
+        {% else %}
+
+            <div
+                class="asset-header__fallback"
+                aria-hidden="true"
+            >
+                {{ asset.symbol|slice:":1"|upper }}
+            </div>
+
+        {% endif %}
+
+
+        <div>
+
+            <h1 class="asset-header__name">
+                {{ asset.name }}
+            </h1>
+
+            <span class="asset-header__symbol">
+                {{ asset.symbol|upper }}
+            </span>
+
+        </div>
+
+    </header>
+
+
+    {% if latest_price %}
+
+        <!-- =====================================================
+             CURRENT PRICE
+        ====================================================== -->
+
+        <section aria-labelledby="current-price-heading">
+
+            <div class="asset-price-card">
+
+                <div class="asset-price-card__body">
+
+                    <div
+                        id="current-price-heading"
+                        class="asset-price-card__label"
+                    >
+                        Current Price
+                    </div>
+
+
+                    <div class="asset-price-card__price">
+
+                        {% if latest_price.price_usd >= 1000 %}
+
+                            ${{ latest_price.price_usd|floatformat:2 }}
+
+                        {% elif latest_price.price_usd >= 1 %}
+
+                            ${{ latest_price.price_usd|floatformat:2 }}
+
+                        {% elif latest_price.price_usd >= 0.01 %}
+
+                            ${{ latest_price.price_usd|floatformat:4 }}
+
+                        {% else %}
+
+                            ${{ latest_price.price_usd|floatformat:8 }}
+
+                        {% endif %}
+
+                    </div>
+
+
+                    {% if latest_price.price_change_24h is not None %}
+
+                        {% if latest_price.price_change_24h > 0 %}
+
+                            <span class="asset-change asset-change--positive">
+                                ▲ {{ latest_price.price_change_24h|floatformat:2 }}% (24h)
+                            </span>
+
+                        {% elif latest_price.price_change_24h < 0 %}
+
+                            <span class="asset-change asset-change--negative">
+                                ▼ {{ latest_price.price_change_24h|floatformat:2 }}% (24h)
+                            </span>
+
+                        {% else %}
+
+                            <span class="asset-change asset-change--neutral">
+                                0.00% (24h)
+                            </span>
+
+                        {% endif %}
+
+                    {% else %}
+
+                        <span class="asset-change asset-change--neutral">
+                            24h change unavailable
+                        </span>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             MARKET STATISTICS
+        ====================================================== -->
+
+        <section
+            class="asset-section"
+            aria-labelledby="market-statistics-heading"
+        >
+
+            <div class="asset-section__header">
+
+                <h2
+                    id="market-statistics-heading"
+                    class="asset-section__title"
+                >
+                    Market Statistics
+                </h2>
+
+            </div>
+
+
+            <div class="row g-3">
+
+                <!-- MARKET CAP -->
+
+                <div class="col-12 col-md-6 col-xl-3">
+
+                    <article class="asset-stat-card">
+
+                        <div class="asset-stat-card__label">
+                            Market Cap
+                        </div>
+
+                        <div class="asset-stat-card__value">
+
+                            {% if latest_price.market_cap_usd %}
+                                ${{ latest_price.market_cap_usd|floatformat:0 }}
+                            {% else %}
+                                —
+                            {% endif %}
+
+                        </div>
+
+                    </article>
+
+                </div>
+
+
+                <!-- VOLUME -->
+
+                <div class="col-12 col-md-6 col-xl-3">
+
+                    <article class="asset-stat-card">
+
+                        <div class="asset-stat-card__label">
+                            24h Volume
+                        </div>
+
+                        <div class="asset-stat-card__value">
+
+                            {% if latest_price.volume_24h_usd %}
+                                ${{ latest_price.volume_24h_usd|floatformat:0 }}
+                            {% else %}
+                                —
+                            {% endif %}
+
+                        </div>
+
+                    </article>
+
+                </div>
+
+
+                <!-- CIRCULATING SUPPLY -->
+
+                <div class="col-12 col-md-6 col-xl-3">
+
+                    <article class="asset-stat-card">
+
+                        <div class="asset-stat-card__label">
+                            Circulating Supply
+                        </div>
+
+                        <div class="asset-stat-card__value">
+
+                            {% if latest_price.circulating_supply %}
+                                {{ latest_price.circulating_supply|floatformat:0 }}
+                            {% else %}
+                                —
+                            {% endif %}
+
+                        </div>
+
+                    </article>
+
+                </div>
+
+
+                <!-- FULLY DILUTED VALUATION -->
+
+                <div class="col-12 col-md-6 col-xl-3">
+
+                    <article class="asset-stat-card">
+
+                        <div class="asset-stat-card__label">
+                            Fully Diluted Value
+                        </div>
+
+                        <div class="asset-stat-card__value">
+
+                            {% if latest_price.fully_diluted_valuation_usd %}
+                                ${{ latest_price.fully_diluted_valuation_usd|floatformat:0 }}
+                            {% else %}
+                                —
+                            {% endif %}
+
+                        </div>
+
+                    </article>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             PRICE HISTORY
+        ====================================================== -->
+
+        <section
+            class="asset-section"
+            aria-labelledby="price-history-heading"
+        >
+
+            <div class="asset-section__header">
+
+                <h2
+                    id="price-history-heading"
+                    class="asset-section__title"
+                >
+                    Price History
+                </h2>
+
+                <span class="text-muted small">
+                    Historical market data
+                </span>
+
+            </div>
+
+
+            <div class="asset-chart">
+
+                <div>
+
+                    <h3 class="asset-chart__title">
+                        Price Chart
+                    </h3>
+
+                    <p class="asset-chart__text">
+                        Historical price visualization will be connected
+                        to the market data service next.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             ASSET INFORMATION
+        ====================================================== -->
+
+        <section
+            class="asset-section"
+            aria-labelledby="asset-information-heading"
+        >
+
+            <div class="asset-section__header">
+
+                <h2
+                    id="asset-information-heading"
+                    class="asset-section__title"
+                >
+                    Asset Information
+                </h2>
+
+            </div>
+
+
+            <div class="asset-information">
+
+                <!-- NAME -->
+
+                <div class="asset-information__row">
+
+                    <span class="asset-information__label">
+                        Name
+                    </span>
+
+                    <span class="asset-information__value">
+                        {{ asset.name }}
+                    </span>
+
+                </div>
+
+
+                <!-- SYMBOL -->
+
+                <div class="asset-information__row">
+
+                    <span class="asset-information__label">
+                        Symbol
+                    </span>
+
+                    <span class="asset-information__value">
+                        {{ asset.symbol|upper }}
+                    </span>
+
+                </div>
+
+
+                <!-- COINGECKO ID -->
+
+                <div class="asset-information__row">
+
+                    <span class="asset-information__label">
+                        CoinGecko ID
+                    </span>
+
+                    <span class="asset-information__value">
+                        {{ asset.coingecko_id }}
+                    </span>
+
+                </div>
+
+
+                <!-- NETWORK -->
+
+                <div class="asset-information__row">
+
+                    <span class="asset-information__label">
+                        Network
+                    </span>
+
+                    <span class="asset-information__value">
+
+                        {% if asset.chain %}
+                            {{ asset.chain }}
+                        {% else %}
+                            Not specified
+                        {% endif %}
+
+                    </span>
+
+                </div>
+
+
+                <!-- CONTRACT -->
+
+                {% if asset.contract_address %}
+
+                    <div class="asset-information__row">
+
+                        <span class="asset-information__label">
+                            Contract Address
+                        </span>
+
+                        <span class="asset-information__value">
+                            {{ asset.contract_address }}
+                        </span>
+
+                    </div>
+
+                {% endif %}
+
+
+                <!-- DECIMALS -->
+
+                {% if asset.decimals is not None %}
+
+                    <div class="asset-information__row">
+
+                        <span class="asset-information__label">
+                            Decimals
+                        </span>
+
+                        <span class="asset-information__value">
+                            {{ asset.decimals }}
+                        </span>
+
+                    </div>
+
+                {% endif %}
+
+
+                <!-- LAST UPDATED -->
+
+                <div class="asset-information__row">
+
+                    <span class="asset-information__label">
+                        Last Updated
+                    </span>
+
+                    <span class="asset-information__value">
+
+                        {{ latest_price.captured_at|date:"M d, Y H:i" }}
+
+                    </span>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+    {% else %}
+
+        <!-- =====================================================
+             NO PRICE DATA
+        ====================================================== -->
+
+        <div
+            class="asset-empty"
+            role="status"
+        >
+
+            <h2 class="asset-empty__title">
+                No Price Data Available
+            </h2>
+
+            <p class="asset-empty__text">
+                HappyWallet has this asset registered, but no market
+                price has been recorded yet.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+</section>
+
+{% endblock %}

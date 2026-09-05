@@ -1,0 +1,687 @@
+from pathlib import Path
+import zipfile
+import textwrap
+
+root = Path("/mnt/data/happywallet_scaffold")
+
+files = {
+    "apps/accounts/__init__.py": "",
+    "apps/core/__init__.py": "",
+    "apps/wallet/__init__.py": "",
+    "apps/wallet/models/__init__.py": "",
+    "apps/wallet/services/__init__.py": "",
+    "apps/wallet/services/hd_wallet.py": r'''
+"""
+HD wallet primitives.
+
+This module intentionally does not expose private keys or implement
+network-specific signing. Use a vetted BIP-39/BIP-32 implementation
+such as bip_utils for production key derivation.
+"""
+
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass(frozen=True)
+class WalletAddress:
+    network: str
+    account: int
+    change: int
+    index: int
+    address: str
+
+
+class HDWalletService:
+    """High-level interface for HD wallet operations."""
+
+    def __init__(self, network: str = "ethereum"):
+        self.network = network
+
+    def generate_mnemonic(self, strength: int = 256) -> str:
+        """
+        Generate a BIP-39 mnemonic.
+
+        Install/use bip_utils in the production implementation.
+        """
+        try:
+            from bip_utils import Bip39MnemonicGenerator, Bip39WordsNum
+        except ImportError as exc:
+            raise RuntimeError(
+                "Install bip_utils before generating a mnemonic."
+            ) from exc
+
+        words = {
+            128: Bip39WordsNum.WORDS_NUM_12,
+            160: Bip39WordsNum.WORDS_NUM_15,
+            192: Bip39WordsNum.WORDS_NUM_18,
+            224: Bip39WordsNum.WORDS_NUM_21,
+            256: Bip39WordsNum.WORDS_NUM_24,
+        }.get(strength)
+
+        if words is None:
+            raise ValueError("strength must be one of 128, 160, 192, 224, 256")
+
+        return str(Bip39MnemonicGenerator().FromWordsNumber(words))
+
+    def derive_address(
+        self,
+        mnemonic: str,
+        account: int = 0,
+        change: int = 0,
+        index: int = 0,
+        passphrase: str = "",
+    ) -> WalletAddress:
+        """
+        Derive a public address.
+
+        Network-specific derivation should be implemented explicitly
+        rather than silently guessing a coin/path.
+        """
+        raise NotImplementedError(
+            "Implement explicit network derivation using a vetted "
+            "BIP-39/BIP-32/BIP-44 library."
+        )
+''',
+
+    "apps/wallet/services/address.py": r'''
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class AddressInfo:
+    address: str
+    network: str
+    is_valid: bool
+    reason: str = ""
+
+
+class AddressService:
+    """Network-aware address validation facade."""
+
+    def validate(self, address: str, network: str) -> AddressInfo:
+        if not address or not address.strip():
+            return AddressInfo(address, network, False, "Address is empty.")
+
+        # Do not use length/prefix heuristics for production validation.
+        # Dispatch to a network-specific vetted parser instead.
+        raise NotImplementedError(
+            f"No production validator configured for network={network!r}."
+        )
+''',
+
+    "apps/wallet/services/derivation.py": r'''
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class DerivationPath:
+    purpose: int
+    coin_type: int
+    account: int
+    change: int
+    address_index: int
+
+    def as_string(self) -> str:
+        return (
+            f"m/{self.purpose}'/{self.coin_type}'/"
+            f"{self.account}'/{self.change}/{self.address_index}"
+        )
+
+
+class DerivationService:
+    """
+    Central place for HD derivation paths.
+
+    Keep coin types and path standards explicit. Never infer them from
+    an address string.
+    """
+
+    def bip44(
+        self,
+        coin_type: int,
+        account: int = 0,
+        change: int = 0,
+        address_index: int = 0,
+    ) -> DerivationPath:
+        return DerivationPath(
+            purpose=44,
+            coin_type=coin_type,
+            account=account,
+            change=change,
+            address_index=address_index,
+        )
+''',
+
+    "apps/wallet/services/signing.py": r'''
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class SigningRequest:
+    network: str
+    unsigned_transaction: bytes
+    derivation_path: str
+
+
+@dataclass(frozen=True)
+class SignedTransaction:
+    network: str
+    raw_transaction: bytes
+    transaction_hash: str | None = None
+
+
+class SigningService:
+    """
+    Offline signing boundary.
+
+    The private key/seed must stay inside the cold-wallet environment.
+    Do not send private keys to the online desktop, Django server,
+    browser, market service, or broadcaster.
+    """
+
+    def sign(self, request: SigningRequest) -> SignedTransaction:
+        raise NotImplementedError(
+            "Implement network-specific signing with a vetted library "
+            "inside the offline signer."
+        )
+''',
+
+    "apps/market/__init__.py": "",
+    "apps/market/services/__init__.py": "",
+    "apps/market/services/price_service.py": r'''
+from dataclasses import dataclass
+from decimal import Decimal
+
+
+@dataclass(frozen=True)
+class PriceQuote:
+    asset: str
+    currency: str
+    price: Decimal
+    source: str
+
+
+class PriceService:
+    """Read-only market-data facade."""
+
+    def get_price(self, asset: str, currency: str = "USD") -> PriceQuote:
+        raise NotImplementedError(
+            "Connect this facade to your chosen market-data provider."
+        )
+''',
+
+    "apps/market/services/token_service.py": r'''
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class TokenMetadata:
+    symbol: str
+    name: str
+    network: str
+    contract_address: str | None
+    decimals: int
+
+
+class TokenService:
+    """Token metadata registry/service."""
+
+    def get_token(self, symbol: str, network: str) -> TokenMetadata:
+        raise NotImplementedError(
+            "Load token metadata from your registry or trusted provider."
+        )
+''',
+
+    "apps/portfolio/__init__.py": "",
+    "apps/transaction/__init__.py": "",
+    "apps/transaction/services/__init__.py": "",
+    "apps/transaction/services/transaction_builder.py": r'''
+from dataclasses import dataclass
+from decimal import Decimal
+
+
+@dataclass(frozen=True)
+class TransactionIntent:
+    network: str
+    asset: str
+    sender: str
+    recipient: str
+    amount: Decimal
+    fee_limit: Decimal | None = None
+    nonce: int | None = None
+
+
+@dataclass(frozen=True)
+class UnsignedTransaction:
+    network: str
+    asset: str
+    sender: str
+    recipient: str
+    amount: Decimal
+    payload: bytes
+
+
+class TransactionBuilder:
+    """Build unsigned transaction payloads for offline signing."""
+
+    def build(self, intent: TransactionIntent) -> UnsignedTransaction:
+        if intent.amount <= 0:
+            raise ValueError("Transaction amount must be greater than zero.")
+
+        if not intent.sender.strip() or not intent.recipient.strip():
+            raise ValueError("Sender and recipient are required.")
+
+        # The payload must be produced by a network-specific serializer.
+        raise NotImplementedError(
+            "Implement a network-specific transaction serializer. "
+            "Do not serialize financial transactions using ad-hoc JSON."
+        )
+''',
+
+    "apps/transaction/services/transaction_decoder.py": r'''
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class DecodedTransaction:
+    network: str
+    sender: str | None
+    recipient: str | None
+    amount: str | None
+    fee: str | None
+    nonce: int | None
+    raw: bytes
+
+
+class TransactionDecoder:
+    """Decode and verify transaction data before signing."""
+
+    def decode(self, network: str, raw: bytes) -> DecodedTransaction:
+        if not raw:
+            raise ValueError("Transaction payload is empty.")
+
+        raise NotImplementedError(
+            "Implement strict network-specific decoding and validation."
+        )
+''',
+
+    "apps/transaction/services/broadcaster.py": r'''
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class BroadcastResult:
+    network: str
+    transaction_hash: str
+    accepted: bool
+    provider: str
+
+
+class TransactionBroadcaster:
+    """
+    Online-only transaction broadcaster.
+
+    It should receive only signed transactions. It must never have access
+    to seed phrases or private keys.
+    """
+
+    def broadcast(self, network: str, raw_transaction: bytes) -> BroadcastResult:
+        if not raw_transaction:
+            raise ValueError("Signed transaction is empty.")
+
+        raise NotImplementedError(
+            "Connect to a trusted blockchain RPC/node provider."
+        )
+''',
+
+    "apps/security/__init__.py": "",
+    "apps/security/encryption.py": r'''
+"""
+Vault encryption helpers.
+
+Install:
+    pip install cryptography
+
+The vault format uses:
+    Scrypt password KDF -> AES-256-GCM authenticated encryption
+"""
+
+import base64
+import os
+from dataclasses import dataclass
+
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+
+
+@dataclass(frozen=True)
+class EncryptedBlob:
+    salt: bytes
+    nonce: bytes
+    ciphertext: bytes
+
+    def as_dict(self) -> dict[str, str]:
+        return {
+            "salt": base64.b64encode(self.salt).decode("ascii"),
+            "nonce": base64.b64encode(self.nonce).decode("ascii"),
+            "ciphertext": base64.b64encode(self.ciphertext).decode("ascii"),
+        }
+
+
+class EncryptionService:
+    """Password-based authenticated encryption."""
+
+    SALT_SIZE = 16
+    NONCE_SIZE = 12
+    KEY_SIZE = 32
+
+    def derive_key(self, password: str, salt: bytes) -> bytes:
+        if not password:
+            raise ValueError("Password cannot be empty.")
+
+        kdf = Scrypt(
+            salt=salt,
+            length=self.KEY_SIZE,
+            n=2**15,
+            r=8,
+            p=1,
+        )
+        return kdf.derive(password.encode("utf-8"))
+
+    def encrypt(self, plaintext: bytes, password: str) -> EncryptedBlob:
+        salt = os.urandom(self.SALT_SIZE)
+        nonce = os.urandom(self.NONCE_SIZE)
+        key = self.derive_key(password, salt)
+
+        ciphertext = AESGCM(key).encrypt(
+            nonce,
+            plaintext,
+            None,
+        )
+
+        return EncryptedBlob(salt, nonce, ciphertext)
+
+    def decrypt(self, blob: EncryptedBlob, password: str) -> bytes:
+        key = self.derive_key(password, blob.salt)
+
+        return AESGCM(key).decrypt(
+            blob.nonce,
+            blob.ciphertext,
+            None,
+        )
+''',
+
+    "apps/security/key_store.py": r'''
+from dataclasses import dataclass
+from pathlib import Path
+
+from .encryption import EncryptedBlob, EncryptionService
+
+
+@dataclass
+class KeyStore:
+    """
+    Encrypted vault storage.
+
+    This class deliberately stores encrypted bytes only.
+    """
+
+    path: Path
+    encryption: EncryptionService
+
+    def save(self, secret: bytes, password: str) -> None:
+        blob = self.encryption.encrypt(secret, password)
+
+        payload = (
+            b"HWV1\n"
+            + blob.salt
+            + blob.nonce
+            + blob.ciphertext
+        )
+
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_bytes(payload)
+
+    def load(self, password: str) -> bytes:
+        payload = self.path.read_bytes()
+
+        if not payload.startswith(b"HWV1\n"):
+            raise ValueError("Unsupported or corrupted wallet vault.")
+
+        payload = payload[5:]
+
+        salt = payload[:16]
+        nonce = payload[16:28]
+        ciphertext = payload[28:]
+
+        blob = EncryptedBlob(
+            salt=salt,
+            nonce=nonce,
+            ciphertext=ciphertext,
+        )
+
+        return self.encryption.decrypt(blob, password)
+''',
+
+    "apps/security/security_policy.py": r'''
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class SecurityPolicy:
+    require_offline_signing: bool = True
+    allow_private_key_export: bool = False
+    allow_seed_export: bool = False
+    require_transaction_confirmation: bool = True
+    require_address_verification: bool = True
+    lock_after_seconds: int = 300
+
+
+class SecurityPolicyService:
+    """Central security-policy checks."""
+
+    def __init__(self, policy: SecurityPolicy | None = None):
+        self.policy = policy or SecurityPolicy()
+
+    def assert_signing_allowed(self, online: bool) -> None:
+        if self.policy.require_offline_signing and online:
+            raise PermissionError(
+                "Signing is disabled while the wallet is online."
+            )
+
+    def assert_export_allowed(self, export_type: str) -> None:
+        if export_type == "seed" and not self.policy.allow_seed_export:
+            raise PermissionError("Seed export is disabled by policy.")
+
+        if (
+            export_type == "private_key"
+            and not self.policy.allow_private_key_export
+        ):
+            raise PermissionError(
+                "Private-key export is disabled by policy."
+            )
+''',
+
+    "apps/ledger/__init__.py": "",
+    "apps/dashboard/__init__.py": "",
+    "apps/usb_manager/__init__.py": "",
+    "apps/usb_manager/detector.py": r'''
+from dataclasses import dataclass
+from pathlib import Path
+
+
+@dataclass(frozen=True)
+class USBDevice:
+    mount_point: Path
+    label: str | None = None
+
+
+class USBDetector:
+    """
+    Portable-device abstraction.
+
+    OS-specific detection belongs in an adapter layer.
+    """
+
+    def list_devices(self) -> list[USBDevice]:
+        return []
+''',
+
+    "apps/usb_manager/vault.py": r'''
+from pathlib import Path
+
+from apps.security.encryption import EncryptionService
+from apps.security.key_store import KeyStore
+
+
+class USBVault:
+    """Encrypted wallet-vault facade for a removable device."""
+
+    VAULT_FILENAME = "happywallet.vault"
+
+    def __init__(self, mount_point: Path):
+        self.mount_point = Path(mount_point)
+        self.store = KeyStore(
+            self.mount_point / self.VAULT_FILENAME,
+            EncryptionService(),
+        )
+
+    def initialize(self, secret: bytes, password: str) -> None:
+        self.store.save(secret, password)
+
+    def unlock(self, password: str) -> bytes:
+        return self.store.load(password)
+
+    def exists(self) -> bool:
+        return self.store.path.exists()
+''',
+
+    "apps/usb_manager/transport.py": r'''
+from dataclasses import dataclass
+from pathlib import Path
+import hashlib
+
+
+@dataclass(frozen=True)
+class TransferPackage:
+    filename: str
+    sha256: str
+    data: bytes
+
+
+class USBTransport:
+    """
+    Controlled transfer boundary between online and offline systems.
+
+    Always hash and validate the exact bytes being transferred.
+    """
+
+    def package(self, filename: str, data: bytes) -> TransferPackage:
+        digest = hashlib.sha256(data).hexdigest()
+
+        return TransferPackage(
+            filename=filename,
+            sha256=digest,
+            data=data,
+        )
+
+    def verify(self, package: TransferPackage) -> bool:
+        actual = hashlib.sha256(package.data).hexdigest()
+        return actual == package.sha256
+
+    def write(self, mount_point: Path, package: TransferPackage) -> Path:
+        if not self.verify(package):
+            raise ValueError("Transfer package failed SHA-256 verification.")
+
+        target = Path(mount_point) / package.filename
+        target.write_bytes(package.data)
+        return target
+''',
+
+    "README.md": r'''
+# HappyWallet Core Scaffold
+
+This is the initial application/service scaffold for HappyWallet.
+
+## Security boundary
+
+### Online side
+Allowed:
+- public blockchain RPC calls
+- balances
+- transaction history
+- market prices
+- unsigned transaction construction
+- signed transaction broadcasting
+
+Not allowed:
+- seed phrases
+- private keys
+- wallet signing
+
+### Offline USB side
+Allowed:
+- encrypted vault
+- seed/private-key access
+- transaction decoding
+- user confirmation
+- transaction signing
+
+Not allowed:
+- Internet access during signing
+
+## Important
+
+The `NotImplementedError` methods are intentional. Network-specific
+cryptographic operations should be implemented with audited/vetted
+libraries and explicit network rules rather than handwritten cryptography.
+
+Install the basic crypto dependency:
+
+    pip install cryptography
+
+For BIP-39/BIP-32/BIP-44 support:
+
+    pip install bip_utils
+
+Do not use this scaffold as a production wallet until the network-specific
+derivation, address validation, transaction serialization, transaction
+decoding, signing, RPC authentication, audit logging, and secure-memory
+requirements have been implemented and tested.
+''',
+
+    "requirements-happywallet-core.txt": r'''
+cryptography>=45,<47
+bip_utils>=2.9,<3
+''',
+}
+
+# Add empty __init__.py files for app/service directories not already listed.
+directories = {
+    "apps/accounts", "apps/core", "apps/wallet", "apps/wallet/models",
+    "apps/wallet/services", "apps/market", "apps/market/services",
+    "apps/portfolio", "apps/transaction", "apps/transaction/services",
+    "apps/security", "apps/ledger", "apps/dashboard", "apps/usb_manager"
+}
+
+root.mkdir(parents=True, exist_ok=True)
+
+for directory in directories:
+    init_path = f"{directory}/__init__.py"
+    files.setdefault(init_path, "")
+
+for relative, content in files.items():
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(textwrap.dedent(content).lstrip(), encoding="utf-8")
+
+zip_path = Path("/mnt/data/HappyWallet_core_scaffold.zip")
+with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+    for path in sorted(root.rglob("*")):
+        if path.is_file():
+            zf.write(path, path.relative_to(root.parent))
+
+print(f"Created {len(files)} files.")
+print(f"ZIP: {zip_path}")
+print("Root:", root)

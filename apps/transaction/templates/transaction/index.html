@@ -1,0 +1,725 @@
+{% extends "base.html" %}
+
+{% block title %}Transactions | HappyWallet{% endblock %}
+
+{% block content %}
+
+<main class="container py-5">
+
+    <!-- =========================================================
+         PAGE HEADER
+    ========================================================== -->
+
+    <section class="mb-4">
+
+        <div class="d-flex flex-column flex-md-row
+                    justify-content-between
+                    align-items-md-center
+                    gap-3">
+
+            <div>
+
+                <span class="text-muted small">
+                    {{ app_name|default:"HappyWallet" }}
+                </span>
+
+                <h1 class="fw-bold mt-1 mb-2">
+                    Transactions
+                </h1>
+
+                <p class="text-muted mb-0">
+                    View your wallet transaction history and activity.
+                </p>
+
+            </div>
+
+            <a
+                href="{% url 'dashboard:index' %}"
+                class="btn btn-outline-secondary"
+            >
+                ← Dashboard
+            </a>
+
+        </div>
+
+    </section>
+
+
+    <!-- =========================================================
+         WALLET / HISTORY STATUS
+    ========================================================== -->
+
+    {% if wallet %}
+
+        {% if transaction_history_available %}
+
+            <section class="mb-4">
+
+                <div class="alert alert-success
+                            border-0 shadow-sm
+                            d-flex flex-column flex-md-row
+                            justify-content-between
+                            align-items-md-center
+                            gap-2 mb-0">
+
+                    <div>
+
+                        <strong>
+                            Wallet Connected
+                        </strong>
+
+                        <span class="ms-md-2">
+                            Transaction history is available.
+                        </span>
+
+                    </div>
+
+                    {% if wallet.network %}
+
+                        <span class="badge bg-success">
+                            {{ wallet.network.name }}
+                        </span>
+
+                    {% endif %}
+
+                </div>
+
+            </section>
+
+        {% else %}
+
+            <section class="mb-4">
+
+                <div class="alert alert-warning
+                            border-0 shadow-sm
+                            d-flex flex-column flex-md-row
+                            justify-content-between
+                            align-items-md-center
+                            gap-2 mb-0">
+
+                    <div>
+
+                        <strong>
+                            Transaction History Unavailable
+                        </strong>
+
+                        <span class="ms-md-2">
+                            The wallet is connected, but transaction
+                            history could not currently be retrieved.
+                        </span>
+
+                    </div>
+
+                    {% if wallet.network %}
+
+                        <span class="badge bg-warning text-dark">
+                            {{ wallet.network.name }}
+                        </span>
+
+                    {% endif %}
+
+                </div>
+
+            </section>
+
+        {% endif %}
+
+    {% else %}
+
+        <section class="mb-4">
+
+            <div class="alert alert-secondary
+                        border-0 shadow-sm mb-0">
+
+                <strong>
+                    No Wallet
+                </strong>
+
+                <span>
+                    Create or connect a wallet to view
+                    transaction activity.
+                </span>
+
+            </div>
+
+        </section>
+
+    {% endif %}
+
+
+    <!-- =========================================================
+         TRANSACTION OVERVIEW
+    ========================================================== -->
+
+    <section class="row g-4 mb-4">
+
+        <!-- TRANSACTION COUNT -->
+
+        <div class="col-12 col-md-4">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body p-4">
+
+                    <p class="text-muted small mb-2">
+                        Transactions
+                    </p>
+
+                    <h2 class="fw-bold mb-2">
+                        {{ transaction_count|default:0 }}
+                    </h2>
+
+                    {% if transaction_count %}
+
+                        <p class="text-muted small mb-0">
+                            Transactions available for this wallet.
+                        </p>
+
+                    {% elif transaction_history_available %}
+
+                        <p class="text-muted small mb-0">
+                            No transactions have been found.
+                        </p>
+
+                    {% else %}
+
+                        <p class="text-muted small mb-0">
+                            Transaction history is currently unavailable.
+                        </p>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- WALLET -->
+
+        <div class="col-12 col-md-4">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body p-4">
+
+                    <p class="text-muted small mb-2">
+                        Wallet
+                    </p>
+
+                    {% if wallet %}
+
+                        <h2 class="fw-bold mb-2">
+                            Connected
+                        </h2>
+
+                        <p class="text-muted small mb-0">
+                            Your wallet is ready for transaction
+                            activity tracking.
+                        </p>
+
+                    {% else %}
+
+                        <h2 class="fw-bold mb-2">
+                            Not Configured
+                        </h2>
+
+                        <p class="text-muted small mb-0">
+                            No wallet is currently associated
+                            with your account.
+                        </p>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- STATUS -->
+
+        <div class="col-12 col-md-4">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body p-4">
+
+                    <p class="text-muted small mb-2">
+                        Transaction Status
+                    </p>
+
+                    {% if transaction_history_available %}
+
+                        <h2 class="fw-bold mb-2">
+                            Available
+                        </h2>
+
+                        <p class="text-muted small mb-0">
+                            Transaction history can be displayed.
+                        </p>
+
+                    {% else %}
+
+                        <h2 class="fw-bold mb-2">
+                            Unavailable
+                        </h2>
+
+                        <p class="text-muted small mb-0">
+                            Transaction history could not currently
+                            be resolved.
+                        </p>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =========================================================
+         TRANSACTION HISTORY
+    ========================================================== -->
+
+    <section class="mb-4">
+
+        <div class="card border-0 shadow-sm">
+
+            <div class="card-body p-4">
+
+                <div class="d-flex flex-column flex-md-row
+                            justify-content-between
+                            align-items-md-center
+                            gap-2 mb-4">
+
+                    <div>
+
+                        <h2 class="h5 fw-bold mb-1">
+                            Transaction History
+                        </h2>
+
+                        <p class="text-muted small mb-0">
+                            Public transaction activity associated
+                            with your wallet.
+                        </p>
+
+                    </div>
+
+                    <span class="badge bg-light text-dark">
+
+                        {{ transaction_count|default:0 }}
+
+                        {% if transaction_count == 1 %}
+                            transaction
+                        {% else %}
+                            transactions
+                        {% endif %}
+
+                    </span>
+
+                </div>
+
+
+                {% if transactions %}
+
+                    <!-- =================================================
+                         TRANSACTION TABLE
+                    ================================================== -->
+
+                    <div class="table-responsive">
+
+                        <table class="table table-hover
+                                      align-middle mb-0">
+
+                            <thead>
+
+                                <tr>
+
+                                    <th scope="col">
+                                        Transaction
+                                    </th>
+
+                                    <th scope="col">
+                                        Type
+                                    </th>
+
+                                    <th scope="col">
+                                        Status
+                                    </th>
+
+                                    <th scope="col">
+                                        Network
+                                    </th>
+
+                                    <th scope="col">
+                                        Block
+                                    </th>
+
+                                    <th scope="col"
+                                        class="text-end">
+                                        Amount
+                                    </th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody>
+
+                                {% for transaction in transactions %}
+
+                                <tr>
+
+                                    <!-- TRANSACTION HASH -->
+
+                                    <td>
+
+                                        {% if transaction.transaction_hash %}
+
+                                            <code class="small text-break">
+                                                {{ transaction.transaction_hash }}
+                                            </code>
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <!-- TYPE -->
+
+                                    <td>
+
+                                        {% if transaction.transaction_type %}
+
+                                            {{ transaction.transaction_type }}
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <!-- STATUS -->
+
+                                    <td>
+
+                                        {% if transaction.status %}
+
+                                            <span class="badge bg-secondary">
+                                                {{ transaction.status }}
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <!-- NETWORK -->
+
+                                    <td>
+
+                                        {% if transaction.network %}
+
+                                            {{ transaction.network }}
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <!-- BLOCK -->
+
+                                    <td>
+
+                                        {% if transaction.block_number is not None %}
+
+                                            {{ transaction.block_number }}
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <!-- AMOUNT -->
+
+                                    <td class="text-end">
+
+                                        {% if transaction.amount is not None %}
+
+                                            {{ transaction.amount }}
+
+                                            {% if transaction.symbol %}
+                                                {{ transaction.symbol }}
+                                            {% endif %}
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+                                </tr>
+
+                                {% endfor %}
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+
+                {% elif transaction_history_available %}
+
+                    <!-- =================================================
+                         EMPTY STATE
+                    ================================================== -->
+
+                    <div class="text-center py-5">
+
+                        <div
+                            class="fs-1 mb-3"
+                            aria-hidden="true"
+                        >
+                            📭
+                        </div>
+
+                        <h3 class="h5 fw-bold mb-2">
+                            No Transactions Yet
+                        </h3>
+
+                        <p class="text-muted small mb-0">
+                            No public transaction activity has been
+                            found for this wallet.
+                        </p>
+
+                    </div>
+
+
+                {% else %}
+
+                    <!-- =================================================
+                         UNAVAILABLE STATE
+                    ================================================== -->
+
+                    <div class="text-center py-5">
+
+                        <div
+                            class="fs-1 mb-3"
+                            aria-hidden="true"
+                        >
+                            ⚠️
+                        </div>
+
+                        <h3 class="h5 fw-bold mb-2">
+                            Transaction History Unavailable
+                        </h3>
+
+                        <p class="text-muted small mb-0">
+                            Transaction history could not currently
+                            be retrieved. Please try again later.
+                        </p>
+
+                    </div>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =========================================================
+         TRANSACTION INFORMATION
+    ========================================================== -->
+
+    <section class="mb-4">
+
+        <div class="card border-0 shadow-sm">
+
+            <div class="card-body p-4">
+
+                <h2 class="h5 fw-bold mb-4">
+                    Transaction Information
+                </h2>
+
+                <div class="row g-4">
+
+                    <!-- HISTORY -->
+
+                    <div class="col-12 col-md-4">
+
+                        <div class="d-flex
+                                    justify-content-between
+                                    align-items-center">
+
+                            <span class="text-muted">
+                                History
+                            </span>
+
+                            {% if transaction_history_available %}
+
+                                <span class="badge bg-success">
+                                    Available
+                                </span>
+
+                            {% else %}
+
+                                <span class="badge bg-warning text-dark">
+                                    Unavailable
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- RECORDED TRANSACTIONS -->
+
+                    <div class="col-12 col-md-4">
+
+                        <div class="d-flex
+                                    justify-content-between
+                                    align-items-center">
+
+                            <span class="text-muted">
+                                Recorded Transactions
+                            </span>
+
+                            <span class="fw-semibold">
+                                {{ transaction_count|default:0 }}
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- STATUS -->
+
+                    <div class="col-12 col-md-4">
+
+                        <div class="d-flex
+                                    justify-content-between
+                                    align-items-center">
+
+                            <span class="text-muted">
+                                Status
+                            </span>
+
+                            {% if transaction_history_available %}
+
+                                <span class="badge bg-success">
+                                    Ready
+                                </span>
+
+                            {% else %}
+
+                                <span class="badge bg-warning text-dark">
+                                    Unavailable
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =========================================================
+         FOOTER NAVIGATION
+    ========================================================== -->
+
+    <section class="mt-4">
+
+        <div class="card border-0 bg-light">
+
+            <div class="card-body p-4">
+
+                <div class="d-flex flex-column flex-md-row
+                            justify-content-between
+                            align-items-md-center
+                            gap-3">
+
+                    <div>
+
+                        <h2 class="h6 fw-bold mb-1">
+                            {{ app_name|default:"HappyWallet" }}
+                        </h2>
+
+                        <p class="text-muted small mb-0">
+                            Manage your wallet, portfolio,
+                            and transaction activity.
+                        </p>
+
+                    </div>
+
+                    <a
+                        href="{% url 'dashboard:index' %}"
+                        class="btn btn-outline-secondary"
+                    >
+                        ← Dashboard
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+</main>
+
+{% endblock %}

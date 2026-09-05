@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Market | HappyWallet{% endblock %}
+
+{% block meta_description %}
+Live cryptocurrency market prices and assets tracked by HappyWallet.
+{% endblock %}
+
+{% block content %}
+
+<section class="container py-4">
+
+    <!-- =========================================================
+         MARKET HEADER
+    ========================================================== -->
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h1 class="mb-1">
+                Cryptocurrency Market
+            </h1>
+
+            <p class="text-muted mb-0">
+                Track the latest market prices and asset information.
+            </p>
+        </div>
+
+    </div>
+
+
+    <!-- =========================================================
+         MARKET ASSETS
+    ========================================================== -->
+
+    {% if assets %}
+
+        <div class="row g-4">
+
+            {% for item in assets %}
+
+                <div class="col-12 col-md-6 col-xl-4">
+
+                    <article class="card h-100 shadow-sm">
+
+                        <div class="card-body">
+
+                            <div class="d-flex align-items-center mb-3">
+
+                                {% if item.asset.image_url %}
+
+                                    <img
+                                        src="{{ item.asset.image_url }}"
+                                        alt="{{ item.asset.name }}"
+                                        width="48"
+                                        height="48"
+                                        class="rounded-circle me-3"
+                                        loading="lazy"
+                                    >
+
+                                {% else %}
+
+                                    <div
+                                        class="rounded-circle bg-light d-flex align-items-center justify-content-center me-3"
+                                        style="width: 48px; height: 48px;"
+                                        aria-hidden="true"
+                                    >
+                                        {{ item.asset.symbol|slice:":1"|upper }}
+                                    </div>
+
+                                {% endif %}
+
+                                <div>
+
+                                    <h2 class="h5 mb-0">
+                                        {{ item.asset.name }}
+                                    </h2>
+
+                                    <small class="text-muted">
+                                        {{ item.asset.symbol|upper }}
+                                    </small>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="mb-3">
+
+                                <div class="text-muted small">
+                                    Current Price
+                                </div>
+
+                                <div class="fs-3 fw-bold">
+                                    ${{ item.price.price_usd|floatformat:2 }}
+                                </div>
+
+                            </div>
+
+
+                            <div class="row g-3">
+
+                                <div class="col-6">
+
+                                    <div class="text-muted small">
+                                        Market Cap
+                                    </div>
+
+                                    {% if item.price.market_cap_usd %}
+                                        <div class="fw-semibold">
+                                            ${{ item.price.market_cap_usd|floatformat:0 }}
+                                        </div>
+                                    {% else %}
+                                        <div class="text-muted">
+                                            —
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+
+                                <div class="col-6">
+
+                                    <div class="text-muted small">
+                                        24h Volume
+                                    </div>
+
+                                    {% if item.price.volume_24h_usd %}
+                                        <div class="fw-semibold">
+                                            ${{ item.price.volume_24h_usd|floatformat:0 }}
+                                        </div>
+                                    {% else %}
+                                        <div class="text-muted">
+                                            —
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+
+                                <div class="col-6">
+
+                                    <div class="text-muted small">
+                                        24h Change
+                                    </div>
+
+                                    {% if item.price.price_change_24h is not None %}
+
+                                        <div class="fw-semibold">
+                                            {{ item.price.price_change_24h|floatformat:2 }}%
+                                        </div>
+
+                                    {% else %}
+
+                                        <div class="text-muted">
+                                            —
+                                        </div>
+
+                                    {% endif %}
+
+                                </div>
+
+
+                                <div class="col-6">
+
+                                    <div class="text-muted small">
+                                        Network
+                                    </div>
+
+                                    {% if item.asset.chain %}
+                                        <div class="fw-semibold">
+                                            {{ item.asset.chain }}
+                                        </div>
+                                    {% else %}
+                                        <div class="text-muted">
+                                            —
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="card-footer bg-transparent border-0 pt-0 pb-3">
+
+                            <a
+                                href="{% url 'market:asset_detail' item.asset.coingecko_id %}"
+                                class="btn btn-outline-primary w-100"
+                            >
+                                View Asset
+                            </a>
+
+                        </div>
+
+                    </article>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    {% else %}
+
+        <div class="alert alert-info" role="status">
+
+            <h2 class="h5">
+                No market data available
+            </h2>
+
+            <p class="mb-0">
+                HappyWallet does not have any market prices yet.
+                Synchronize market data to populate this page.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+</section>
+
+{% endblock %}

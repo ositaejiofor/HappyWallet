@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+
+{% block title %}
+Order {{ order.id }} | Trading | HappyWallet
+{% endblock %}
+
+{% block content %}
+
+<section class="container py-5">
+
+    <div class="mb-4">
+
+        <a
+            href="{% url 'trading:home' %}"
+            class="text-decoration-none"
+        >
+            ← Back to Trading
+        </a>
+
+    </div>
+
+
+    <div class="d-flex justify-content-between
+                align-items-start flex-wrap gap-3 mb-4">
+
+        <div>
+
+            <h1 class="h2 mb-2">
+                Order #{{ order.id }}
+            </h1>
+
+            <p class="text-muted mb-0">
+                {{ order.pair.symbol }}
+            </p>
+
+        </div>
+
+        <span class="badge text-bg-light fs-6">
+            {{ order.get_status_display }}
+        </span>
+
+    </div>
+
+
+    <div class="row g-4">
+
+        <!-- ORDER INFORMATION -->
+
+        <div class="col-lg-7">
+
+            <div class="card border-0 shadow-sm">
+
+                <div class="card-body p-4">
+
+                    <h2 class="h5 mb-4">
+                        Order Details
+                    </h2>
+
+                    <dl class="row mb-0">
+
+                        <dt class="col-sm-5">
+                            Trading Pair
+                        </dt>
+
+                        <dd class="col-sm-7">
+                            {{ order.pair.symbol }}
+                        </dd>
+
+
+                        <dt class="col-sm-5">
+                            Side
+                        </dt>
+
+                        <dd class="col-sm-7">
+
+                            {% if order.side == "buy" %}
+
+                            <span class="text-success fw-semibold">
+                                BUY
+                            </span>
+
+                            {% else %}
+
+                            <span class="text-danger fw-semibold">
+                                SELL
+                            </span>
+
+                            {% endif %}
+
+                        </dd>
+
+
+                        <dt class="col-sm-5">
+                            Order Type
+                        </dt>
+
+                        <dd class="col-sm-7">
+                            {{ order.get_order_type_display }}
+                        </dd>
+
+
+                        <dt class="col-sm-5">
+                            Quantity
+                        </dt>
+
+                        <dd class="col-sm-7">
+                            {{ order.quantity }}
+                            {{ order.pair.base_asset.symbol|upper }}
+                        </dd>
+
+
+                        {% if order.limit_price %}
+
+                        <dt class="col-sm-5">
+                            Limit Price
+                        </dt>
+
+                        <dd class="col-sm-7">
+                            {{ order.limit_price }}
+                        </dd>
+
+                        {% endif %}
+
+
+                        <dt class="col-sm-5">
+                            Filled
+                        </dt>
+
+                        <dd class="col-sm-7">
+                            {{ order.filled_quantity }}
+                        </dd>
+
+
+                        {% if order.average_fill_price %}
+
+                        <dt class="col-sm-5">
+                            Average Fill Price
+                        </dt>
+
+                        <dd class="col-sm-7">
+                            {{ order.average_fill_price }}
+                        </dd>
+
+                        {% endif %}
+
+
+                        <dt class="col-sm-5">
+                            Created
+                        </dt>
+
+                        <dd class="col-sm-7">
+                            {{ order.created_at|date:"Y-m-d H:i:s" }}
+                        </dd>
+
+                    </dl>
+
+                </div>
+
+            </div>
+
+
+            <!-- EXECUTIONS -->
+
+            <div class="card border-0 shadow-sm mt-4">
+
+                <div class="card-body p-4">
+
+                    <h2 class="h5 mb-4">
+                        Executions
+                    </h2>
+
+                    {% if trades %}
+
+                    <div class="table-responsive">
+
+                        <table class="table mb-0">
+
+                            <thead>
+
+                                <tr>
+                                    <th>Execution</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Value</th>
+                                </tr>
+
+                            </thead>
+
+                            <tbody>
+
+                            {% for trade in trades %}
+
+                                <tr>
+
+                                    <td>
+                                        {{ trade.execution_id }}
+                                    </td>
+
+                                    <td>
+                                        {{ trade.quantity }}
+                                    </td>
+
+                                    <td>
+                                        {{ trade.price }}
+                                    </td>
+
+                                    <td>
+                                        {{ trade.notional_value }}
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                    {% else %}
+
+                    <p class="text-muted mb-0">
+                        This order has not been executed.
+                    </p>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ACTIONS -->
+
+        <div class="col-lg-5">
+
+            <div class="card border-0 shadow-sm">
+
+                <div class="card-body p-4">
+
+                    <h2 class="h5 mb-3">
+                        Order Actions
+                    </h2>
+
+
+                    {% if order.status == "pending" or order.status == "open" %}
+
+                    <form
+                        method="post"
+                        action="{% url 'trading:execute_paper_order' order.id %}"
+                        class="mb-3"
+                    >
+
+                        {% csrf_token %}
+
+                        <button
+                            type="submit"
+                            class="btn btn-success w-100"
+                        >
+                            Execute Paper Trade
+                        </button>
+
+                    </form>
+
+
+                    <form
+                        method="post"
+                        action="{% url 'trading:cancel_order' order.id %}"
+                    >
+
+                        {% csrf_token %}
+
+                        <button
+                            type="submit"
+                            class="btn btn-outline-danger w-100"
+                        >
+                            Cancel Order
+                        </button>
+
+                    </form>
+
+                    {% elif order.status == "filled" %}
+
+                    <div class="alert alert-success mb-0">
+                        This order has been filled.
+                    </div>
+
+                    {% elif order.status == "cancelled" %}
+
+                    <div class="alert alert-secondary mb-0">
+                        This order has been cancelled.
+                    </div>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+
+            <div class="card border-0 shadow-sm mt-4">
+
+                <div class="card-body p-4">
+
+                    <h2 class="h6">
+                        Safety Boundary
+                    </h2>
+
+                    <p class="small text-muted mb-0">
+                        This is a paper-trading execution.
+                        It does not access private keys,
+                        sign blockchain transactions, or
+                        broadcast transactions to a network.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+{% endblock %}

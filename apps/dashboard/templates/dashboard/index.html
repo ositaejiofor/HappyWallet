@@ -1,0 +1,652 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | {{ app_name }}{% endblock %}
+
+{% block content %}
+
+<style>
+    /* =========================================================
+       DASHBOARD
+    ========================================================= */
+
+    .dashboard-page {
+        min-height: 100vh;
+        background:
+            radial-gradient(
+                circle at top right,
+                rgba(13, 110, 253, 0.07),
+                transparent 32%
+            ),
+            #f8f9fa;
+        padding: 2rem 0 4rem;
+    }
+
+    .dashboard-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1.25rem;
+    }
+
+    /* =========================================================
+       HERO
+    ========================================================= */
+
+    .dashboard-hero {
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 1.25rem;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.04);
+    }
+
+    .dashboard-hero h1 {
+        margin: 0 0 0.5rem;
+        font-size: 2rem;
+        font-weight: 700;
+        color: #212529;
+    }
+
+    .dashboard-hero p {
+        margin: 0;
+        color: #6c757d;
+        font-size: 1rem;
+    }
+
+    /* =========================================================
+       SECTION
+    ========================================================= */
+
+    .dashboard-section {
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 1.25rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.04);
+    }
+
+    .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .section-title {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #212529;
+    }
+
+    .section-subtitle {
+        margin: 0.25rem 0 0;
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+
+    /* =========================================================
+       STATUS
+    ========================================================= */
+
+    .activity-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.4rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .activity-status.available {
+        background: rgba(25, 135, 84, 0.1);
+        color: #198754;
+    }
+
+    .activity-status.unavailable {
+        background: rgba(108, 117, 125, 0.1);
+        color: #6c757d;
+    }
+
+    .status-dot {
+        width: 0.45rem;
+        height: 0.45rem;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    /* =========================================================
+       ACTIVITY LIST
+    ========================================================= */
+
+    .activity-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .activity-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem;
+        border: 1px solid rgba(0, 0, 0, 0.07);
+        border-radius: 0.9rem;
+        background: #ffffff;
+        transition:
+            background-color 0.15s ease,
+            border-color 0.15s ease;
+    }
+
+    .activity-item:hover {
+        background: #f8f9fa;
+        border-color: rgba(13, 110, 253, 0.2);
+    }
+
+    .activity-main {
+        min-width: 0;
+    }
+
+    .activity-type {
+        margin: 0;
+        font-weight: 600;
+        color: #212529;
+        text-transform: capitalize;
+    }
+
+    .activity-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+        margin-top: 0.3rem;
+        color: #6c757d;
+        font-size: 0.8rem;
+    }
+
+    .activity-value {
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .activity-amount {
+        margin: 0;
+        font-weight: 700;
+        color: #212529;
+    }
+
+    .activity-symbol {
+        margin-top: 0.2rem;
+        color: #6c757d;
+        font-size: 0.8rem;
+    }
+
+    /* =========================================================
+       EMPTY STATE
+    ========================================================= */
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1.5rem;
+        border: 1px dashed rgba(0, 0, 0, 0.12);
+        border-radius: 1rem;
+        background: #fafafa;
+    }
+
+    .empty-state-icon {
+        font-size: 2rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .empty-state h3 {
+        margin: 0 0 0.4rem;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #212529;
+    }
+
+    .empty-state p {
+        margin: 0;
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+
+    /* =========================================================
+       SUMMARY CARDS
+    ========================================================= */
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .summary-card {
+        padding: 1.25rem;
+        border: 1px solid rgba(0, 0, 0, 0.07);
+        border-radius: 1rem;
+        background: #ffffff;
+    }
+
+    .summary-label {
+        margin: 0 0 0.35rem;
+        color: #6c757d;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .summary-value {
+        margin: 0;
+        color: #212529;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    /* =========================================================
+       ACTIONS
+    ========================================================= */
+
+    .action-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .action-card {
+        display: block;
+        padding: 1.25rem;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 1rem;
+        background: #ffffff;
+        color: inherit;
+        text-decoration: none;
+        transition:
+            transform 0.15s ease,
+            box-shadow 0.15s ease,
+            border-color 0.15s ease;
+    }
+
+    .action-card:hover {
+        color: inherit;
+        text-decoration: none;
+        transform: translateY(-2px);
+        border-color: rgba(13, 110, 253, 0.25);
+        box-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.06);
+    }
+
+    .action-icon {
+        font-size: 1.4rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .action-title {
+        margin: 0 0 0.25rem;
+        font-weight: 700;
+        color: #212529;
+    }
+
+    .action-description {
+        margin: 0;
+        color: #6c757d;
+        font-size: 0.85rem;
+    }
+
+    /* =========================================================
+       RESPONSIVE
+    ========================================================= */
+
+    @media (max-width: 768px) {
+        .dashboard-page {
+            padding-top: 1rem;
+        }
+
+        .dashboard-hero {
+            padding: 1.5rem;
+        }
+
+        .dashboard-hero h1 {
+            font-size: 1.6rem;
+        }
+
+        .section-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .summary-grid,
+        .action-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .activity-item {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .activity-value {
+            text-align: left;
+        }
+    }
+</style>
+
+<div class="dashboard-page">
+
+```
+<div class="dashboard-container">
+
+    <!-- =====================================================
+         HERO
+    ====================================================== -->
+
+    <section class="dashboard-hero">
+
+        <h1>
+            Trading Activity
+        </h1>
+
+        <p>
+            Monitor your recent trading and transaction activity
+            from one place.
+        </p>
+
+    </section>
+
+
+    <!-- =====================================================
+         RECENT ACTIVITY
+    ====================================================== -->
+
+    <section class="dashboard-section">
+
+        <div class="section-header">
+
+            <div>
+                <h2 class="section-title">
+                    Recent Activity
+                </h2>
+
+                <p class="section-subtitle">
+                    Your latest blockchain transaction activity.
+                </p>
+            </div>
+
+            {% if activity_available %}
+
+                <span class="activity-status available">
+                    <span class="status-dot"></span>
+                    Activity Available
+                </span>
+
+            {% else %}
+
+                <span class="activity-status unavailable">
+                    <span class="status-dot"></span>
+                    Activity Unavailable
+                </span>
+
+            {% endif %}
+
+        </div>
+
+
+        {% if recent_activity %}
+
+            <div class="activity-list">
+
+                {% for transaction in recent_activity %}
+
+                    <article class="activity-item">
+
+                        <div class="activity-main">
+
+                            <p class="activity-type">
+                                {{ transaction.transaction_type|default:"Transaction" }}
+                            </p>
+
+                            <div class="activity-meta">
+
+                                {% if transaction.status %}
+                                    <span>
+                                        Status: {{ transaction.status }}
+                                    </span>
+                                {% endif %}
+
+                                {% if transaction.network %}
+                                    <span>
+                                        {{ transaction.network }}
+                                    </span>
+                                {% endif %}
+
+                                {% if transaction.transaction_hash %}
+                                    <span>
+                                        {{ transaction.transaction_hash|truncatechars:18 }}
+                                    </span>
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="activity-value">
+
+                            {% if transaction.amount %}
+                                <p class="activity-amount">
+                                    {{ transaction.amount }}
+                                </p>
+                            {% endif %}
+
+                            {% if transaction.symbol %}
+                                <div class="activity-symbol">
+                                    {{ transaction.symbol }}
+                                </div>
+                            {% endif %}
+
+                        </div>
+
+                    </article>
+
+                {% endfor %}
+
+            </div>
+
+        {% elif activity_available %}
+
+            <div class="empty-state">
+
+                <div class="empty-state-icon">
+                    ⇄
+                </div>
+
+                <h3>
+                    No recent activity
+                </h3>
+
+                <p>
+                    Your recent trading and transaction activity
+                    will appear here.
+                </p>
+
+            </div>
+
+        {% else %}
+
+            <div class="empty-state">
+
+                <div class="empty-state-icon">
+                    ◌
+                </div>
+
+                <h3>
+                    Activity temporarily unavailable
+                </h3>
+
+                <p>
+                    Transaction activity could not be retrieved
+                    right now. Please try again later.
+                </p>
+
+            </div>
+
+        {% endif %}
+
+    </section>
+
+
+    <!-- =====================================================
+         ACTIVITY SUMMARY
+    ====================================================== -->
+
+    <section class="dashboard-section">
+
+        <div class="section-header">
+
+            <div>
+                <h2 class="section-title">
+                    Activity Summary
+                </h2>
+
+                <p class="section-subtitle">
+                    A quick view of your recent activity.
+                </p>
+            </div>
+
+        </div>
+
+
+        <div class="summary-grid">
+
+            <div class="summary-card">
+
+                <p class="summary-label">
+                    Recent Activities
+                </p>
+
+                <p class="summary-value">
+                    {{ recent_activity_count }}
+                </p>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <p class="summary-label">
+                    Activity Status
+                </p>
+
+                <p class="summary-value">
+
+                    {% if activity_available %}
+                        Available
+                    {% else %}
+                        Unavailable
+                    {% endif %}
+
+                </p>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         TRADING ACTIONS
+    ====================================================== -->
+
+    <section class="dashboard-section">
+
+        <div class="section-header">
+
+            <div>
+                <h2 class="section-title">
+                    Trading
+                </h2>
+
+                <p class="section-subtitle">
+                    Continue managing your portfolio and transactions.
+                </p>
+            </div>
+
+        </div>
+
+
+        <div class="action-grid">
+
+            <a
+                href="{% url 'portfolio:index' %}"
+                class="action-card"
+            >
+
+                <div class="action-icon">
+                    📊
+                </div>
+
+                <h3 class="action-title">
+                    Portfolio
+                </h3>
+
+                <p class="action-description">
+                    Review your portfolio and asset positions.
+                </p>
+
+            </a>
+
+
+            <a
+                href="{% url 'transaction:index' %}"
+                class="action-card"
+            >
+
+                <div class="action-icon">
+                    ⇄
+                </div>
+
+                <h3 class="action-title">
+                    Transactions
+                </h3>
+
+                <p class="action-description">
+                    View and manage your transaction activity.
+                </p>
+
+            </a>
+
+
+            <a
+                href="{% url 'wallet:home' %}"
+                class="action-card"
+            >
+
+                <div class="action-icon">
+                    👛
+                </div>
+
+                <h3 class="action-title">
+                    Wallet
+                </h3>
+
+                <p class="action-description">
+                    Open wallet management and wallet operations.
+                </p>
+
+            </a>
+
+        </div>
+
+    </section>
+
+</div>
+
+
+</div>
+
+{% endblock %}

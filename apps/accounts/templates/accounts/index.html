@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}My Account | HappyWallet{% endblock %}
+
+{% block meta_description %}
+Manage your HappyWallet account, security settings, and wallet preferences.
+{% endblock %}
+
+{% block content %}
+<div class="container py-4 py-lg-5">
+
+    <!-- Page header -->
+    <header class="mb-4">
+        <div class="row align-items-center g-3">
+            <div class="col">
+                <h1 class="h3 mb-1">My Account</h1>
+                <p class="text-muted mb-0">
+                    Manage your HappyWallet account and account preferences.
+                </p>
+            </div>
+        </div>
+    </header>
+
+
+    <div class="row g-4">
+
+        <!-- ================================================================= -->
+        <!-- Account information -->
+        <!-- ================================================================= -->
+
+        <div class="col-12 col-lg-8">
+            <section
+                class="card shadow-sm border-0 h-100"
+                aria-labelledby="account-information-heading"
+            >
+                <div class="card-body p-4">
+
+                    <h2
+                        id="account-information-heading"
+                        class="h5 mb-4"
+                    >
+                        Account Information
+                    </h2>
+
+
+                    <!-- Email -->
+                    <div class="mb-4">
+                        <div class="small text-muted mb-1">
+                            Email address
+                        </div>
+
+                        <div class="fw-semibold text-break">
+                            {{ user.email|default:"Not available" }}
+                        </div>
+                    </div>
+
+
+                    <!-- Account status -->
+                    <div class="mb-4">
+                        <div class="small text-muted mb-1">
+                            Account status
+                        </div>
+
+                        <div>
+                            {% if user.is_active %}
+                                <span
+                                    class="badge text-bg-success"
+                                    aria-label="Account status: Active"
+                                >
+                                    Active
+                                </span>
+                            {% else %}
+                                <span
+                                    class="badge text-bg-secondary"
+                                    aria-label="Account status: Inactive"
+                                >
+                                    Inactive
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+
+                    <!-- Member since -->
+                    {% if user.date_joined %}
+                        <div class="mb-0">
+                            <div class="small text-muted mb-1">
+                                Member since
+                            </div>
+
+                            <div class="fw-semibold">
+                                {{ user.date_joined|date:"F j, Y" }}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                </div>
+            </section>
+        </div>
+
+
+        <!-- ================================================================= -->
+        <!-- Account actions -->
+        <!-- ================================================================= -->
+
+        <div class="col-12 col-lg-4">
+            <section
+                class="card shadow-sm border-0 h-100"
+                aria-labelledby="account-actions-heading"
+            >
+                <div class="card-body p-4">
+
+                    <h2
+                        id="account-actions-heading"
+                        class="h5 mb-4"
+                    >
+                        Account Actions
+                    </h2>
+
+                    <nav
+                        aria-label="Account actions"
+                        class="d-grid gap-2"
+                    >
+
+                        <!-- Dashboard -->
+                        <a
+                            href="{% url 'dashboard:index' %}"
+                            class="btn btn-outline-primary"
+                        >
+                            Dashboard
+                        </a>
+
+
+                        <!-- Portfolio -->
+                        <a
+                            href="{% url 'portfolio:index' %}"
+                            class="btn btn-outline-secondary"
+                        >
+                            Portfolio
+                        </a>
+
+
+                        <!-- Transactions -->
+                        {% url 'transaction:index' as transaction_url %}
+                        {% if transaction_url %}
+                            <a
+                                href="{{ transaction_url }}"
+                                class="btn btn-outline-secondary"
+                            >
+                                Transactions
+                            </a>
+                        {% endif %}
+
+
+                        <!-- Security -->
+                        {% url 'security:index' as security_url %}
+                        {% if security_url %}
+                            <a
+                                href="{{ security_url }}"
+                                class="btn btn-outline-secondary"
+                            >
+                                Security
+                            </a>
+                        {% endif %}
+
+                    </nav>
+
+                </div>
+            </section>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

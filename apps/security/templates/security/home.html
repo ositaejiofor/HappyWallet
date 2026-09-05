@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+
+{% block title %}Security | HappyWallet{% endblock %}
+
+{% block content %}
+
+<div class="container py-5">
+
+    <!-- Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+
+        <div>
+            <span class="text-primary fw-semibold">
+                HappyWallet
+            </span>
+
+            <h1 class="fw-bold mb-1">
+                Security
+            </h1>
+
+            <p class="text-muted mb-0">
+                Review the security protections applied to your account and wallet.
+            </p>
+        </div>
+
+        <a href="{% url 'dashboard:index' %}">
+            Dashboard
+        </a>
+
+    </div>
+
+
+    <!-- Security Overview -->
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+
+        <div class="card-body p-4">
+
+            <div class="d-flex align-items-center gap-3">
+
+                <div
+                    class="rounded-circle bg-success-subtle text-success
+                           d-flex align-items-center justify-content-center"
+                    style="width: 56px; height: 56px;"
+                >
+                    <span class="fs-4">
+                        🛡️
+                    </span>
+                </div>
+
+                <div>
+                    <h4 class="fw-bold mb-1">
+                        Security protections active
+                    </h4>
+
+                    <p class="text-muted mb-0">
+                        Your HappyWallet account is protected by the application's
+                        security controls.
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Account Security -->
+    <div class="row g-4">
+
+
+        <!-- Authentication -->
+        <div class="col-lg-6">
+
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+
+                <div class="card-body p-4">
+
+                    <h5 class="fw-bold mb-4">
+                        Account Authentication
+                    </h5>
+
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+
+                        <div>
+                            <strong>
+                                Authentication
+                            </strong>
+
+                            <p class="text-muted small mb-0">
+                                {{ security.authentication.description }}
+                            </p>
+                        </div>
+
+                        <span class="badge bg-success">
+                            {{ security.authentication.status }}
+                        </span>
+
+                    </div>
+
+
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+
+                        <div>
+                            <strong>
+                                Password Protection
+                            </strong>
+
+                            <p class="text-muted small mb-0">
+                                {{ security.password.description }}
+                            </p>
+                        </div>
+
+                        <span class="badge bg-success">
+                            {{ security.password.status }}
+                        </span>
+
+                    </div>
+
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <strong>
+                                Password Policy
+                            </strong>
+
+                            <p class="text-muted small mb-0">
+                                {{ security.password_policy.description }}
+                            </p>
+                        </div>
+
+                        <span class="badge bg-success">
+                            {{ security.password_policy.status }}
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Wallet Protection -->
+        <div class="col-lg-6">
+
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+
+                <div class="card-body p-4">
+
+                    <h5 class="fw-bold mb-4">
+                        Wallet Protection
+                    </h5>
+
+
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+
+                        <div>
+                            <strong>
+                                Encryption
+                            </strong>
+
+                            <p class="text-muted small mb-0">
+                                {{ security.encryption.description }}
+                            </p>
+                        </div>
+
+                        <span class="badge bg-success">
+                            {{ security.encryption.status }}
+                        </span>
+
+                    </div>
+
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <strong>
+                                Private Key Protection
+                            </strong>
+
+                            <p class="text-muted small mb-0">
+                                Private wallet material is not displayed by this page.
+                            </p>
+                        </div>
+
+                        <span class="badge bg-success">
+                            Protected
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Monitoring -->
+        <div class="col-lg-6">
+
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+
+                <div class="card-body p-4">
+
+                    <h5 class="fw-bold mb-4">
+                        Security Monitoring
+                    </h5>
+
+
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+
+                        <div>
+                            <strong>
+                                Audit Logging
+                            </strong>
+
+                            <p class="text-muted small mb-0">
+                                {{ security.audit.description }}
+                            </p>
+                        </div>
+
+                        <span class="badge bg-success">
+                            {{ security.audit.status }}
+                        </span>
+
+                    </div>
+
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <strong>
+                                Rate Limiting
+                            </strong>
+
+                            <p class="text-muted small mb-0">
+                                {{ security.rate_limiting.description }}
+                            </p>
+                        </div>
+
+                        <span class="badge bg-success">
+                            {{ security.rate_limiting.status }}
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Security Boundary -->
+        <div class="col-lg-6">
+
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+
+                <div class="card-body p-4">
+
+                    <h5 class="fw-bold mb-4">
+                        Security Boundary
+                    </h5>
+
+                    <p class="text-muted">
+                        Sensitive wallet credentials are deliberately excluded
+                        from the security dashboard.
+                    </p>
+
+                    <ul class="list-group list-group-flush">
+
+                        <li class="list-group-item px-0">
+                            🔐 Private keys are not displayed
+                        </li>
+
+                        <li class="list-group-item px-0">
+                            🔑 Encryption keys are not displayed
+                        </li>
+
+                        <li class="list-group-item px-0">
+                            📝 Recovery phrases are not displayed
+                        </li>
+
+                        <li class="list-group-item px-0">
+                            🛡️ Decrypted vault contents are not displayed
+                        </li>
+
+                    </ul>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Account -->
+    <div class="card border-0 shadow-sm rounded-4 mt-4">
+
+        <div class="card-body p-4">
+
+            <h5 class="fw-bold mb-3">
+                Account
+            </h5>
+
+            <p class="text-muted mb-3">
+                Signed in as
+                <strong>{{ request.user.email }}</strong>
+            </p>
+
+            <div class="d-flex flex-wrap gap-2">
+
+                <a
+                    href="{% url 'accounts:account' %}"
+                    class="btn btn-outline-primary"
+                >
+                    Account Settings
+                </a>
+
+                <a
+                    href="{% url 'accounts:logout' %}"
+                    class="btn btn-outline-danger"
+                >
+                    Sign Out
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

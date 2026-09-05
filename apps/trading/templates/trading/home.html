@@ -1,0 +1,641 @@
+{% extends "base.html" %}
+
+{% block title %}Trading | HappyWallet{% endblock %}
+
+{% block meta_description %}
+Trade supported cryptocurrency assets using HappyWallet's controlled
+trading environment.
+{% endblock %}
+
+{% block content %}
+
+<style>
+    .trading-page {
+        min-height: 100vh;
+        padding: 2rem 0 4rem;
+    }
+
+    .trading-header {
+        margin-bottom: 2rem;
+    }
+
+    .trading-header h1 {
+        font-weight: 700;
+    }
+
+    .trading-mode {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        padding: .4rem .75rem;
+        border-radius: 999px;
+        background: rgba(25, 135, 84, .1);
+        color: #198754;
+        font-size: .85rem;
+        font-weight: 600;
+    }
+
+    .trading-card {
+        border: 0;
+        border-radius: 1rem;
+        box-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, .07);
+    }
+
+    .trade-side {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: .75rem;
+    }
+
+    .trade-side input {
+        display: none;
+    }
+
+    .trade-side label {
+        cursor: pointer;
+        text-align: center;
+        padding: .75rem;
+        border: 1px solid #dee2e6;
+        border-radius: .6rem;
+        font-weight: 600;
+    }
+
+    .trade-side input:checked + label {
+        background: #198754;
+        color: white;
+        border-color: #198754;
+    }
+
+    .order-row {
+        border-bottom: 1px solid #eee;
+    }
+
+    .order-row:last-child {
+        border-bottom: 0;
+    }
+
+    .status-badge {
+        font-size: .75rem;
+        font-weight: 600;
+    }
+
+    .balance-value {
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+
+    @media (max-width: 768px) {
+        .trading-page {
+            padding-top: 1rem;
+        }
+    }
+</style>
+
+<section class="container trading-page">
+
+    <!-- HEADER -->
+
+    <div class="trading-header">
+
+        <div class="d-flex flex-wrap justify-content-between
+                    align-items-start gap-3">
+
+            <div>
+                <h1 class="h2 mb-2">
+                    Crypto Trading
+                </h1>
+
+                <p class="text-muted mb-0">
+                    Buy and sell supported crypto assets through
+                    HappyWallet's controlled trading system.
+                </p>
+            </div>
+
+            <div class="trading-mode">
+                <span>●</span>
+                {{ account.get_mode_display }}
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- SUPPORTED BLOCKCHAIN NETWORKS / ASSETS -->
+    <div class="card trading-card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2 class="h5 mb-1">Supported Networks &amp; Assets</h2>
+                    <p class="text-muted small mb-0">
+                        Blockchain networks and assets currently enabled in HappyWallet.
+                    </p>
+                </div>
+            </div>
+
+            {% if networks %}
+                <div class="row g-3">
+                    {% for network in networks %}
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 h-100">
+                                <div class="fw-semibold">
+                                    {{ network.name }}
+                                </div>
+                                <div class="text-muted small mb-2">
+                                    {{ network.symbol|upper }} · Chain ID {{ network.chain_id }}
+                                </div>
+
+                                {% if network.supported_assets %}
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% for asset in network.supported_assets %}
+                                            <span class="badge bg-light text-dark border">
+                                                {{ asset.symbol|upper }} — {{ asset.name }}
+                                            </span>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <div class="text-muted small">
+                                        No active assets configured.
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-muted">
+                    No blockchain networks are currently configured.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+
+    <div class="row g-4">
+
+        <!-- ORDER FORM -->
+
+        <div class="col-lg-7">
+
+            <div class="card trading-card">
+
+                <div class="card-body p-4">
+
+                    <div class="d-flex justify-content-between
+                                align-items-center mb-4">
+
+                        <div>
+                            <h2 class="h5 mb-1">
+                                Place Order
+                            </h2>
+
+                            <p class="text-muted small mb-0">
+                                Create an order for paper execution.
+                            </p>
+                        </div>
+
+                        <span class="badge text-bg-light">
+                            Paper
+                        </span>
+
+                    </div>
+
+
+                    {% if pairs %}
+
+                    <form
+                        method="post"
+                        action="{% url 'trading:create_order' %}"
+                    >
+
+                        {% csrf_token %}
+
+
+                        <!-- PAIR -->
+
+                        <div class="mb-4">
+
+                            <label
+                                for="trading-pair"
+                                class="form-label fw-semibold"
+                            >
+                                Trading Pair
+                            </label>
+
+                            <select
+                                id="trading-pair"
+                                name="pair"
+                                class="form-select"
+                                required
+                            >
+
+                                <option value="">
+                                    Select a trading pair
+                                </option>
+
+                                {% for pair in pairs %}
+
+                                <option value="{{ pair.id }}">
+                                    {{ pair.symbol }}
+                                </option>
+
+                                {% endfor %}
+
+                            </select>
+
+                        </div>
+
+
+                        <!-- SIDE -->
+
+                        <div class="mb-4">
+
+                            <label class="form-label fw-semibold">
+                                Side
+                            </label>
+
+                            <div class="trade-side">
+
+                                <div>
+                                    <input
+                                        type="radio"
+                                        id="side-buy"
+                                        name="side"
+                                        value="buy"
+                                        checked
+                                    >
+
+                                    <label for="side-buy">
+                                        Buy
+                                    </label>
+                                </div>
+
+                                <div>
+                                    <input
+                                        type="radio"
+                                        id="side-sell"
+                                        name="side"
+                                        value="sell"
+                                    >
+
+                                    <label for="side-sell">
+                                        Sell
+                                    </label>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- ORDER TYPE -->
+
+                        <div class="mb-4">
+
+                            <label
+                                for="order-type"
+                                class="form-label fw-semibold"
+                            >
+                                Order Type
+                            </label>
+
+                            <select
+                                id="order-type"
+                                name="order_type"
+                                class="form-select"
+                                required
+                            >
+
+                                <option value="market">
+                                    Market Order
+                                </option>
+
+                                <option value="limit">
+                                    Limit Order
+                                </option>
+
+                            </select>
+
+                        </div>
+
+
+                        <!-- QUANTITY -->
+
+                        <div class="mb-4">
+
+                            <label
+                                for="quantity"
+                                class="form-label fw-semibold"
+                            >
+                                Quantity
+                            </label>
+
+                            <input
+                                type="number"
+                                id="quantity"
+                                name="quantity"
+                                class="form-control"
+                                min="0"
+                                step="any"
+                                placeholder="0.00000000"
+                                required
+                            >
+
+                            <div class="form-text">
+                                Amount of the base asset to trade.
+                            </div>
+
+                        </div>
+
+
+                        <!-- LIMIT PRICE -->
+
+                        <div class="mb-4">
+
+                            <label
+                                for="limit-price"
+                                class="form-label fw-semibold"
+                            >
+                                Limit Price
+                                <span class="text-muted">
+                                    (optional)
+                                </span>
+                            </label>
+
+                            <input
+                                type="number"
+                                id="limit-price"
+                                name="limit_price"
+                                class="form-control"
+                                min="0"
+                                step="any"
+                                placeholder="Only required for limit orders"
+                            >
+
+                        </div>
+
+
+                        <button
+                            type="submit"
+                            class="btn btn-primary w-100 py-2"
+                        >
+                            Create Trading Order
+                        </button>
+
+                    </form>
+
+                    {% else %}
+
+                    <div class="text-center py-5">
+
+                        <div class="fs-1 mb-3">
+                            📊
+                        </div>
+
+                        <h3 class="h5">
+                            No trading pairs available
+                        </h3>
+
+                        <p class="text-muted mb-0">
+                            Trading pairs must be configured before
+                            an order can be created.
+                        </p>
+
+                    </div>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- BALANCES -->
+
+        <div class="col-lg-5">
+
+            <div class="card trading-card">
+
+                <div class="card-body p-4">
+
+                    <div class="d-flex justify-content-between
+                                align-items-center mb-3">
+
+                        <h2 class="h5 mb-0">
+                            Trading Balances
+                        </h2>
+
+                        <span class="badge text-bg-light">
+                            Paper
+                        </span>
+
+                    </div>
+
+
+                    {% if balances %}
+
+                        {% for balance in balances %}
+
+                        <div class="d-flex justify-content-between
+                                    align-items-center py-3
+                                    border-bottom">
+
+                            <div>
+
+                                <div class="fw-semibold">
+                                    {{ balance.asset.symbol|upper }}
+                                </div>
+
+                                <small class="text-muted">
+                                    {{ balance.asset.name }}
+                                </small>
+
+                            </div>
+
+                            <div class="text-end">
+
+                                <div class="balance-value">
+                                    {{ balance.available }}
+                                </div>
+
+                                {% if balance.locked %}
+                                <small class="text-muted">
+                                    {{ balance.locked }} locked
+                                </small>
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                        {% endfor %}
+
+                    {% else %}
+
+                    <div class="text-center py-4">
+
+                        <p class="text-muted mb-0">
+                            No trading balances yet.
+                        </p>
+
+                    </div>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+
+            <!-- SAFETY NOTICE -->
+
+            <div class="card trading-card mt-4">
+
+                <div class="card-body p-4">
+
+                    <h2 class="h6">
+                        Trading Safety
+                    </h2>
+
+                    <p class="small text-muted mb-0">
+                        Trading orders are separated from your wallet
+                        signing system. Paper trading does not access
+                        private keys, sign transactions, or broadcast
+                        blockchain transactions.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- RECENT ORDERS -->
+
+    <div class="card trading-card mt-4">
+
+        <div class="card-body p-4">
+
+            <div class="d-flex justify-content-between
+                        align-items-center mb-3">
+
+                <h2 class="h5 mb-0">
+                    Recent Orders
+                </h2>
+
+                <a
+                    href="{% url 'trading:order_list' %}"
+                    class="btn btn-sm btn-outline-secondary"
+                >
+                    View All
+                </a>
+
+            </div>
+
+
+            {% if orders %}
+
+            <div class="table-responsive">
+
+                <table class="table align-middle mb-0">
+
+                    <thead>
+
+                        <tr>
+                            <th>Pair</th>
+                            <th>Side</th>
+                            <th>Type</th>
+                            <th>Quantity</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {% for order in orders %}
+
+                        <tr class="order-row">
+
+                            <td class="fw-semibold">
+                                {{ order.pair.symbol }}
+                            </td>
+
+                            <td>
+
+                                {% if order.side == "buy" %}
+
+                                <span class="text-success fw-semibold">
+                                    BUY
+                                </span>
+
+                                {% else %}
+
+                                <span class="text-danger fw-semibold">
+                                    SELL
+                                </span>
+
+                                {% endif %}
+
+                            </td>
+
+                            <td>
+                                {{ order.get_order_type_display }}
+                            </td>
+
+                            <td>
+                                {{ order.quantity }}
+                            </td>
+
+                            <td>
+                                <span class="badge text-bg-light status-badge">
+                                    {{ order.get_status_display }}
+                                </span>
+                            </td>
+
+                            <td class="text-end">
+
+                                <a
+                                    href="{% url 'trading:order_detail' order.id %}"
+                                    class="btn btn-sm btn-outline-primary"
+                                >
+                                    View
+                                </a>
+
+                            </td>
+
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            {% else %}
+
+            <div class="text-center py-5">
+
+                <p class="text-muted mb-0">
+                    You have not created any trading orders yet.
+                </p>
+
+            </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</section>
+
+{% endblock %}

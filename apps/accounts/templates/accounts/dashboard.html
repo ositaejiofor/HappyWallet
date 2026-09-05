@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+
+{% block title %}Account Dashboard | HappyWallet{% endblock %}
+
+{% block content %}
+
+<div class="container py-5">
+
+    <!-- PAGE HEADER -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+
+        <div>
+            <span class="text-primary fw-semibold">
+                HappyWallet
+            </span>
+
+            <h1 class="fw-bold mb-1">
+                Account Dashboard
+            </h1>
+
+            <p class="text-muted mb-0">
+                Manage your HappyWallet account and security settings.
+            </p>
+        </div>
+
+        <form
+            method="post"
+            action="{% url 'accounts:logout' %}"
+            class="m-0"
+        >
+            {% csrf_token %}
+
+            <button
+                type="submit"
+                class="btn btn-outline-danger"
+            >
+                Logout
+            </button>
+        </form>
+
+    </div>
+
+
+    <!-- ACCOUNT SUMMARY -->
+    <div class="row g-4">
+
+        <!-- PROFILE -->
+        <div class="col-lg-8">
+
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+
+                <div class="card-body p-4">
+
+                    <div class="d-flex align-items-center mb-4">
+
+                        <div
+                            class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-3"
+                            style="width: 64px; height: 64px;"
+                        >
+                            <span class="fs-4 fw-bold">
+                                {{ user.username|first|upper }}
+                            </span>
+                        </div>
+
+                        <div>
+
+                            <h4 class="fw-bold mb-1">
+                                {{ user.username }}
+                            </h4>
+
+                            <p class="text-muted mb-0">
+                                {{ user.email }}
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <h5 class="fw-bold mb-3">
+                        Account Information
+                    </h5>
+
+
+                    <div class="row g-3">
+
+                        <!-- USERNAME -->
+                        <div class="col-md-6">
+
+                            <div class="bg-light rounded-3 p-3">
+
+                                <small class="text-muted d-block">
+                                    Username
+                                </small>
+
+                                <strong>
+                                    {{ user.username }}
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- EMAIL -->
+                        <div class="col-md-6">
+
+                            <div class="bg-light rounded-3 p-3">
+
+                                <small class="text-muted d-block">
+                                    Email Address
+                                </small>
+
+                                <strong>
+                                    {{ user.email }}
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- ACCOUNT STATUS -->
+                        <div class="col-md-6">
+
+                            <div class="bg-light rounded-3 p-3">
+
+                                <small class="text-muted d-block">
+                                    Account Status
+                                </small>
+
+                                {% if user.is_active %}
+
+                                    <span class="badge bg-success">
+                                        Active
+                                    </span>
+
+                                {% else %}
+
+                                    <span class="badge bg-danger">
+                                        Inactive
+                                    </span>
+
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- VERIFICATION -->
+                        <div class="col-md-6">
+
+                            <div class="bg-light rounded-3 p-3">
+
+                                <small class="text-muted d-block">
+                                    Verification
+                                </small>
+
+                                {% if user.is_verified %}
+
+                                    <span class="badge bg-success">
+                                        Verified
+                                    </span>
+
+                                {% else %}
+
+                                    <span class="badge bg-warning text-dark">
+                                        Not Verified
+                                    </span>
+
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- SECURITY -->
+        <div class="col-lg-4">
+
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+
+                <div class="card-body p-4">
+
+                    <h5 class="fw-bold mb-3">
+                        Security
+                    </h5>
+
+
+                    <div class="mb-3">
+
+                        <span class="text-muted d-block small">
+                            Password
+                        </span>
+
+                        <span class="fw-semibold">
+                            ••••••••••••
+                        </span>
+
+                    </div>
+
+
+                    <hr>
+
+
+                    <div class="alert alert-secondary mb-0">
+                        Password management will be available here.
+                    </div>
+
+
+                    {% if not user.is_verified %}
+
+                        <a
+                            href="#"
+                            class="btn btn-outline-warning w-100"
+                        >
+                            Verify Email
+                        </a>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- WALLET NAVIGATION -->
+    <div class="card border-0 shadow-sm rounded-4 mt-4">
+
+        <div class="card-body p-4">
+
+            <h5 class="fw-bold mb-2">
+                Wallet
+            </h5>
+
+            <p class="text-muted">
+                Access your wallet and manage your digital assets.
+            </p>
+
+
+            <div class="d-flex flex-wrap gap-2">
+
+                <a
+                    href="{% url 'wallet:home' %}"
+                    class="btn btn-primary"
+                >
+                    Open Wallet
+                </a>
+
+
+                <a
+                    href="{% url 'dashboard:index' %}"
+                    class="btn btn-outline-secondary"
+                >
+                    Dashboard
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ACCOUNT DATES -->
+    <div class="row g-4 mt-1">
+
+        <!-- CREATED -->
+        <div class="col-md-6">
+
+            <div class="card border-0 shadow-sm rounded-4">
+
+                <div class="card-body p-4">
+
+                    <small class="text-muted d-block">
+                        Account Created
+                    </small>
+
+                    <strong>
+                        {{ user.created_at|date:"F j, Y, g:i A" }}
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- UPDATED -->
+        <div class="col-md-6">
+
+            <div class="card border-0 shadow-sm rounded-4">
+
+                <div class="card-body p-4">
+
+                    <small class="text-muted d-block">
+                        Last Account Update
+                    </small>
+
+                    <strong>
+                        {{ user.updated_at|date:"F j, Y, g:i A" }}
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

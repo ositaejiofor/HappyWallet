@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Create Account | HappyWallet{% endblock %}
+
+{% block content %}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7 col-lg-6">
+
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-md-5">
+
+                    <div class="text-center mb-4">
+                        <h1 class="h3 fw-bold">
+                            Create Your Account
+                        </h1>
+
+                        <p class="text-muted mb-0">
+                            Get started with HappyWallet.
+                        </p>
+                    </div>
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger" role="alert">
+                            {% for error in form.non_field_errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label
+                                for="{{ form.username.id_for_label }}"
+                                class="form-label"
+                            >
+                                Username
+                            </label>
+
+                            {{ form.username }}
+
+                            {% for error in form.username.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label
+                                for="{{ form.email.id_for_label }}"
+                                class="form-label"
+                            >
+                                Email address
+                            </label>
+
+                            {{ form.email }}
+
+                            {% for error in form.email.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label
+                                for="{{ form.password1.id_for_label }}"
+                                class="form-label"
+                            >
+                                Password
+                            </label>
+
+                            {{ form.password1 }}
+
+                            {% for error in form.password1.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label
+                                for="{{ form.password2.id_for_label }}"
+                                class="form-label"
+                            >
+                                Confirm password
+                            </label>
+
+                            {{ form.password2 }}
+
+                            {% for error in form.password2.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <button
+                            type="submit"
+                            class="btn btn-primary w-100"
+                        >
+                            Create Account
+                        </button>
+                    </form>
+
+                    <div class="text-center mt-4">
+                        <p class="mb-0">
+                            Already have an account?
+                            <a href="{% url 'accounts:login' %}">
+                                Sign in
+                            </a>
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}

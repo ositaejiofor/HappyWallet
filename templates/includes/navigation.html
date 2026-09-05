@@ -1,0 +1,269 @@
+<header class="site-header">
+
+    <div class="container site-header__inner">
+
+        <!-- =================================================================
+             BRAND
+        ================================================================== -->
+
+        <a
+            href="{% url 'dashboard:index' %}"
+            class="brand"
+            aria-label="HappyWallet Dashboard"
+        >
+            <span class="brand__name">
+                HappyWallet
+            </span>
+        </a>
+
+
+        {% if user.is_authenticated %}
+
+            <!-- =============================================================
+                 MAIN NAVIGATION
+            =============================================================== -->
+
+            <nav
+                class="main-navigation"
+                aria-label="Main navigation"
+            >
+
+                <!-- =========================================================
+                     DASHBOARD
+                ========================================================== -->
+
+                <a
+                    href="{% url 'dashboard:index' %}"
+                    class="main-navigation__link{% if request.resolver_match.app_name == 'dashboard' %} main-navigation__link--active{% endif %}"
+                    {% if request.resolver_match.app_name == 'dashboard' %}
+                        aria-current="page"
+                    {% endif %}
+                >
+                    <span
+                        class="main-navigation__icon"
+                        aria-hidden="true"
+                    >
+                        🏠
+                    </span>
+
+                    <span class="main-navigation__label">
+                        Dashboard
+                    </span>
+                </a>
+
+
+                <!-- =========================================================
+                     WALLET
+                ========================================================== -->
+
+                <a
+                    href="{% url 'wallet:home' %}"
+                    class="main-navigation__link{% if request.resolver_match.app_name == 'wallet' and request.resolver_match.url_name == 'home' %} main-navigation__link--active{% endif %}"
+                    {% if request.resolver_match.app_name == 'wallet' and request.resolver_match.url_name == 'home' %}
+                        aria-current="page"
+                    {% endif %}
+                >
+                    <span
+                        class="main-navigation__icon"
+                        aria-hidden="true"
+                    >
+                        👛
+                    </span>
+
+                    <span class="main-navigation__label">
+                        Wallet
+                    </span>
+                </a>
+
+
+                <!-- =========================================================
+                     CREATE WALLET
+                ========================================================== -->
+
+                <a
+                    href="{% url 'wallet:create' %}"
+                    class="main-navigation__link{% if request.resolver_match.app_name == 'wallet' and request.resolver_match.url_name == 'create' %} main-navigation__link--active{% endif %}"
+                    {% if request.resolver_match.app_name == 'wallet' and request.resolver_match.url_name == 'create' %}
+                        aria-current="page"
+                    {% endif %}
+                >
+                    <span
+                        class="main-navigation__icon"
+                        aria-hidden="true"
+                    >
+                        ➕
+                    </span>
+
+                    <span class="main-navigation__label">
+                        Create Wallet
+                    </span>
+                </a>
+
+
+                <!-- =========================================================
+                     PORTFOLIO
+                ========================================================== -->
+
+                <a
+                    href="{% url 'portfolio:index' %}"
+                    class="main-navigation__link{% if request.resolver_match.app_name == 'portfolio' %} main-navigation__link--active{% endif %}"
+                    {% if request.resolver_match.app_name == 'portfolio' %}
+                        aria-current="page"
+                    {% endif %}
+                >
+                    <span
+                        class="main-navigation__icon"
+                        aria-hidden="true"
+                    >
+                        📊
+                    </span>
+
+                    <span class="main-navigation__label">
+                        Portfolio
+                    </span>
+                </a>
+
+
+                <!-- =========================================================
+                     MARKET
+                ========================================================== -->
+
+                <a
+                    href="{% url 'market:home' %}"
+                    class="main-navigation__link{% if request.resolver_match.app_name == 'market' %} main-navigation__link--active{% endif %}"
+                    {% if request.resolver_match.app_name == 'market' %}
+                        aria-current="page"
+                    {% endif %}
+                >
+                    <span
+                        class="main-navigation__icon"
+                        aria-hidden="true"
+                    >
+                        📈
+                    </span>
+
+                    <span class="main-navigation__label">
+                        Market
+                    </span>
+                </a>
+
+                <!-- =========================================================
+                TRADING
+           ========================================================== -->
+           
+           <a
+               href="{% url 'trading:home' %}"
+               class="main-navigation__link{% if request.resolver_match.app_name == 'trading' %} main-navigation__link--active{% endif %}"
+               {% if request.resolver_match.app_name == 'trading' %}
+                   aria-current="page"
+               {% endif %}
+           >
+               <span
+                   class="main-navigation__icon"
+                   aria-hidden="true"
+               >
+                   💱
+               </span>
+           
+               <span class="main-navigation__label">
+                   Trading
+               </span>
+           </a>
+                <!-- =========================================================
+                     TRANSACTIONS
+                ========================================================== -->
+
+                <a
+                    href="{% url 'transaction:index' %}"
+                    class="main-navigation__link{% if request.resolver_match.app_name == 'transaction' %} main-navigation__link--active{% endif %}"
+                    {% if request.resolver_match.app_name == 'transaction' %}
+                        aria-current="page"
+                    {% endif %}
+                >
+                    <span
+                        class="main-navigation__icon"
+                        aria-hidden="true"
+                    >
+                        ⇄
+                    </span>
+
+                    <span class="main-navigation__label">
+                        Transactions
+                    </span>
+                </a>
+
+
+                <!-- =========================================================
+                     SECURITY
+                ========================================================== -->
+
+                <a
+                    href="{% url 'security:home' %}"
+                    class="main-navigation__link{% if request.resolver_match.app_name == 'security' %} main-navigation__link--active{% endif %}"
+                    {% if request.resolver_match.app_name == 'security' %}
+                        aria-current="page"
+                    {% endif %}
+                >
+                    <span
+                        class="main-navigation__icon"
+                        aria-hidden="true"
+                    >
+                        🛡️
+                    </span>
+
+                    <span class="main-navigation__label">
+                        Security
+                    </span>
+                </a>
+
+            </nav>
+
+
+            <!-- =============================================================
+                 USER MENU
+            =============================================================== -->
+
+            <div class="user-menu">
+
+                <span
+                    class="user-menu__name"
+                    title="{{ user.get_username }}"
+                >
+                    {% if user.get_full_name %}
+                        {{ user.get_full_name }}
+                    {% elif user.email %}
+                        {{ user.email }}
+                    {% elif user.username %}
+                        {{ user.username }}
+                    {% else %}
+                        Account
+                    {% endif %}
+                </span>
+
+
+                <!-- =========================================================
+                     LOGOUT
+                ========================================================== -->
+
+                <form
+                    method="post"
+                    action="{% url 'accounts:logout' %}"
+                    class="logout-form"
+                >
+                    {% csrf_token %}
+
+                    <button
+                        type="submit"
+                        class="logout-button"
+                    >
+                        Logout
+                    </button>
+                </form>
+
+            </div>
+
+        {% endif %}
+
+    </div>
+
+</header>

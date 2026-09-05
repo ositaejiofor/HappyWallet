@@ -1,0 +1,3 @@
+"""
+HappyWallet settings package.
+"""

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Create Wallet | HappyWallet{% endblock %}
+
+{% block content %}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7 col-lg-6">
+
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4 p-md-5">
+
+                <div class="text-center mb-4">
+                    <h2 class="fw-bold">Create Your Wallet</h2>
+                    <p class="text-muted mb-0">
+                        Create a secure HappyWallet protected by your wallet password.
+                    </p>
+                </div>
+
+                <div class="alert alert-warning">
+                    <strong>Important:</strong>
+                    HappyWallet will generate your recovery phrase internally.
+                    Never share your wallet password or recovery phrase with anyone.
+                </div>
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label
+                            for="{{ form.password.id_for_label }}"
+                            class="form-label"
+                        >
+                            {{ form.password.label }}
+                        </label>
+
+                        {{ form.password }}
+
+                        {% if form.password.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.password.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label
+                            for="{{ form.password_confirm.id_for_label }}"
+                            class="form-label"
+                        >
+                            {{ form.password_confirm.label }}
+                        </label>
+
+                        {{ form.password_confirm }}
+
+                        {% if form.password_confirm.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.password_confirm.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid">
+                        <button
+                            type="submit"
+                            class="btn btn-primary btn-lg"
+                        >
+                            🔐 Create Wallet
+                        </button>
+                    </div>
+                </form>
+
+                <div class="text-center mt-4">
+                    <small class="text-muted">
+                        Your wallet will remain locked after creation.
+                    </small>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+
+</div>
+
+{% endblock %}

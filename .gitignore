@@ -1,0 +1,48 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+
+# Test / coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.coverage.*
+
+# IDE / editor
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Generated/static files
+staticfiles/
+media/
+
+# Local databases
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3.backup
+
+# Backup files
+*.bak
+*.broken.bak
+*_backup.py

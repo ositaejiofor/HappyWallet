@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Trading Orders | HappyWallet{% endblock %}
+
+{% block content %}
+
+<section class="container py-5">
+
+    <div class="d-flex justify-content-between
+                align-items-center mb-4">
+
+        <div>
+            <h1 class="h2 mb-1">
+                Trading Orders
+            </h1>
+
+            <p class="text-muted mb-0">
+                Your trading order history.
+            </p>
+        </div>
+
+        <a
+            href="{% url 'trading:home' %}"
+            class="btn btn-primary"
+        >
+            New Order
+        </a>
+
+    </div>
+
+
+    <div class="card border-0 shadow-sm">
+
+        <div class="card-body p-0">
+
+            {% if orders %}
+
+            <div class="table-responsive">
+
+                <table class="table table-hover
+                              align-middle mb-0">
+
+                    <thead>
+                        <tr>
+                            <th>Order</th>
+                            <th>Pair</th>
+                            <th>Side</th>
+                            <th>Type</th>
+                            <th>Quantity</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                    {% for order in orders %}
+
+                        <tr>
+
+                            <td>
+                                <a
+                                    href="{% url 'trading:order_detail' order.id %}"
+                                    class="fw-semibold text-decoration-none"
+                                >
+                                    #{{ order.id }}
+                                </a>
+                            </td>
+
+                            <td>
+                                {{ order.pair.symbol }}
+                            </td>
+
+                            <td>
+
+                                {% if order.side == "buy" %}
+
+                                <span class="text-success fw-semibold">
+                                    BUY
+                                </span>
+
+                                {% else %}
+
+                                <span class="text-danger fw-semibold">
+                                    SELL
+                                </span>
+
+                                {% endif %}
+
+                            </td>
+
+                            <td>
+                                {{ order.get_order_type_display }}
+                            </td>
+
+                            <td>
+                                {{ order.quantity }}
+                            </td>
+
+                            <td>
+                                {{ order.get_status_display }}
+                            </td>
+
+                            <td>
+                                {{ order.created_at|date:"Y-m-d H:i" }}
+                            </td>
+
+                        </tr>
+
+                    {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            {% else %}
+
+            <div class="p-5 text-center">
+
+                <h2 class="h5">
+                    No orders yet
+                </h2>
+
+                <p class="text-muted">
+                    Create your first paper trading order.
+                </p>
+
+                <a
+                    href="{% url 'trading:home' %}"
+                    class="btn btn-primary"
+                >
+                    Start Trading
+                </a>
+
+            </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</section>
+
+{% endblock %}

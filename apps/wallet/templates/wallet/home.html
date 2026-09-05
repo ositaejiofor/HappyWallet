@@ -1,0 +1,2968 @@
+{% extends "base.html" %}
+
+{% block title %}Wallet | HappyWallet{% endblock %}
+
+{% block content %}
+
+<style>
+    /* =========================================================
+       WALLET PAGE
+    ========================================================= */
+
+    .wallet-page {
+        min-height: 100vh;
+        background:
+            radial-gradient(
+                circle at top right,
+                rgba(13, 110, 253, 0.07),
+                transparent 32%
+            ),
+            #f6f8fb;
+    }
+
+    .wallet-container {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+
+    /* =========================================================
+       CARDS
+    ========================================================= */
+
+    .wallet-card {
+        background: #fff;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+    }
+
+    .wallet-card-hover {
+        transition:
+            transform 0.2s ease,
+            box-shadow 0.2s ease;
+    }
+
+    .wallet-card-hover:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+    }
+
+
+    /* =========================================================
+       HEADER
+    ========================================================= */
+
+    .wallet-header {
+        padding: 28px 0 24px;
+    }
+
+    .wallet-eyebrow {
+        color: #6c757d;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .wallet-title {
+        font-size: clamp(1.8rem, 4vw, 2.6rem);
+        font-weight: 800;
+        letter-spacing: -0.04em;
+    }
+
+    .wallet-subtitle {
+        max-width: 700px;
+        color: #6c757d;
+    }
+
+
+    /* =========================================================
+       STATUS
+    ========================================================= */
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 13px;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .status-pill-success {
+        color: #146c43;
+        background: #d1e7dd;
+    }
+
+    .status-pill-locked {
+        color: #41464b;
+        background: #e9ecef;
+    }
+
+    .status-pill-warning {
+        color: #664d03;
+        background: #fff3cd;
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+
+    /* =========================================================
+       LOCKED WALLET
+    ========================================================= */
+
+    .unlock-banner {
+        border: 1px solid #cfe2ff;
+        border-radius: 18px;
+        background: linear-gradient(
+            135deg,
+            #f8fbff,
+            #eef5ff
+        );
+    }
+
+    .unlock-icon {
+        width: 52px;
+        height: 52px;
+        flex: 0 0 52px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 15px;
+        background: #cfe2ff;
+        color: #084298;
+        font-size: 1.45rem;
+    }
+
+    .locked-wallet-card {
+        min-height: 220px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .locked-wallet-icon {
+        width: 76px;
+        height: 76px;
+        margin: 0 auto 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 22px;
+        background: #e9ecef;
+        font-size: 2rem;
+    }
+
+
+    /* =========================================================
+       BALANCE
+    ========================================================= */
+
+    .balance-card {
+        position: relative;
+        overflow: hidden;
+        color: #fff;
+        background:
+            radial-gradient(
+                circle at 90% 10%,
+                rgba(255, 255, 255, 0.18),
+                transparent 30%
+            ),
+            linear-gradient(
+                135deg,
+                #111827,
+                #1f2937 55%,
+                #0f172a
+            );
+        border-radius: 24px;
+        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+    }
+
+    .balance-card::after {
+        content: "";
+        position: absolute;
+        width: 180px;
+        height: 180px;
+        right: -70px;
+        bottom: -80px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .balance-label {
+        color: rgba(255, 255, 255, 0.65);
+        font-size: 0.85rem;
+    }
+
+    .balance-value {
+        font-size: clamp(2.2rem, 6vw, 3.8rem);
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        line-height: 1;
+    }
+
+    .network-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 11px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 0.8rem;
+    }
+
+    .balance-icon {
+        width: 72px;
+        height: 72px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.1);
+        font-size: 2rem;
+    }
+
+
+    /* =========================================================
+       STATS
+    ========================================================= */
+
+    .stat-card {
+        height: 100%;
+        padding: 22px;
+    }
+
+    .stat-icon {
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 13px;
+        background: #f1f5f9;
+        font-size: 1.25rem;
+    }
+
+    .stat-label {
+        color: #6c757d;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .stat-value {
+        font-size: 1.35rem;
+        font-weight: 800;
+    }
+
+
+    /* =========================================================
+       SECTIONS
+    ========================================================= */
+
+    .section-title {
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+
+
+    /* =========================================================
+       ADDRESS
+    ========================================================= */
+
+    .address-box {
+        padding: 4px;
+        background: #f8fafc;
+        border: 1px solid #e9ecef;
+        border-radius: 14px;
+    }
+
+    .address-input {
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        font-family:
+            ui-monospace,
+            SFMono-Regular,
+            Menlo,
+            Monaco,
+            Consolas,
+            "Liberation Mono",
+            monospace;
+        font-size: 0.84rem;
+    }
+
+
+    /* =========================================================
+       ACTIONS
+    ========================================================= */
+
+    .action-button {
+        min-height: 118px;
+        border-radius: 17px;
+        transition: all 0.2s ease;
+    }
+
+    .action-button:hover:not(:disabled) {
+        transform: translateY(-2px);
+    }
+
+    .action-icon {
+        width: 45px;
+        height: 45px;
+        margin: 0 auto 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 13px;
+        font-size: 1.35rem;
+    }
+
+    .action-receive .action-icon {
+        background: #d1e7dd;
+        color: #146c43;
+    }
+
+    .action-send .action-icon {
+        background: #cfe2ff;
+        color: #084298;
+    }
+
+
+    /* =========================================================
+       ASSETS
+    ========================================================= */
+
+    .asset-card {
+        transition:
+            transform 0.2s ease,
+            box-shadow 0.2s ease;
+    }
+
+    .asset-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.07);
+    }
+
+    .asset-icon {
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #eef2f7;
+        font-weight: 800;
+    }
+
+
+    /* =========================================================
+       EMPTY STATES
+    ========================================================= */
+
+    .empty-state {
+        padding: 45px 20px;
+        text-align: center;
+    }
+
+    .empty-icon {
+        width: 62px;
+        height: 62px;
+        margin: 0 auto 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 18px;
+        background: #f1f5f9;
+        font-size: 1.6rem;
+    }
+
+
+    /* =========================================================
+       SECURITY
+    ========================================================= */
+
+    .security-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        padding: 16px 0;
+        border-bottom: 1px solid #eef1f4;
+    }
+
+    .security-item:last-child {
+        border-bottom: 0;
+    }
+
+    .security-indicator {
+        width: 10px;
+        height: 10px;
+        flex: 0 0 10px;
+        border-radius: 50%;
+        background: #198754;
+        box-shadow: 0 0 0 5px rgba(25, 135, 84, 0.1);
+    }
+
+    .security-indicator-muted {
+        background: #adb5bd;
+        box-shadow: 0 0 0 5px rgba(108, 117, 125, 0.1);
+    }
+
+
+    /* =========================================================
+       SECURITY NOTICE
+    ========================================================= */
+
+    .notice {
+        border-radius: 16px;
+        border: 1px solid #ffe69c;
+        background: #fff9e6;
+    }
+
+    .notice-icon {
+        width: 42px;
+        height: 42px;
+        flex: 0 0 42px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        background: #fff3cd;
+    }
+
+
+    /* =========================================================
+       SEND FORM
+    ========================================================= */
+
+    .send-form .form-control,
+    .send-form .form-select {
+        min-height: 46px;
+        border-radius: 12px;
+    }
+
+    .send-form .input-group .form-control {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+
+    .send-form .input-group-text {
+        min-width: 65px;
+        justify-content: center;
+        border-top-right-radius: 12px;
+        border-bottom-right-radius: 12px;
+        font-weight: 700;
+    }
+
+    .send-error {
+        display: none;
+    }
+
+    .send-error.is-visible {
+        display: block;
+    }
+
+
+    /* =========================================================
+       MOBILE
+    ========================================================= */
+
+    @media (max-width: 767.98px) {
+
+        .wallet-header {
+            padding-top: 20px;
+        }
+
+        .balance-card {
+            border-radius: 20px;
+        }
+
+        .address-input {
+            font-size: 0.72rem;
+        }
+
+        .security-item {
+            align-items: flex-start;
+        }
+
+        .locked-wallet-card {
+            min-height: 190px;
+        }
+    }
+</style>
+
+
+<div class="wallet-page">
+
+    <div class="container-fluid px-3 px-lg-4 py-3">
+
+        <div class="wallet-container">
+
+
+            <!-- =================================================
+                 HEADER
+            ================================================== -->
+
+            <header class="wallet-header">
+
+                <div class="d-flex flex-column flex-lg-row
+                            justify-content-between
+                            align-items-lg-center
+                            gap-3">
+
+                    <div>
+
+                        <div class="wallet-eyebrow">
+                            {{ app_name|default:"HappyWallet" }}
+                        </div>
+
+                        <h1 class="wallet-title mt-2 mb-2">
+                            My Wallet
+                        </h1>
+
+                        <p class="wallet-subtitle mb-0">
+                            {% if wallet_unlocked %}
+                                Manage your digital assets, wallet address,
+                                network and security from one place.
+                            {% else %}
+                                Your wallet is protected and currently locked.
+                            {% endif %}
+                        </p>
+
+                    </div>
+
+                    <div>
+
+                        {% if wallet_unlocked %}
+
+                            <span class="status-pill status-pill-success">
+                                <span class="status-dot"></span>
+                                Wallet Unlocked
+                            </span>
+
+                        {% elif wallet_locked %}
+
+                            <span class="status-pill status-pill-locked">
+                                <span>🔒</span>
+                                Wallet Locked
+                            </span>
+
+                        {% else %}
+
+                            <span class="status-pill status-pill-warning">
+                                <span>⚠</span>
+                                {{ wallet_status|default:"Wallet Unavailable" }}
+                            </span>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </header>
+
+
+            <!-- =================================================
+                 LOCKED WALLET
+            ================================================== -->
+
+            {% if not wallet_unlocked %}
+
+                <section class="mb-4">
+
+                    <div class="unlock-banner p-3 p-md-4">
+
+                        <div class="d-flex flex-column flex-md-row
+                                    align-items-md-center
+                                    justify-content-between
+                                    gap-3">
+
+                            <div class="d-flex align-items-center gap-3">
+
+                                <div class="unlock-icon">
+                                    🔒
+                                </div>
+
+                                <div>
+
+                                    <div class="fw-bold">
+                                        Wallet is locked
+                                    </div>
+
+                                    <p class="text-muted small mb-0">
+                                        Your protected wallet remains locked.
+                                        Unlock it to access wallet details
+                                        and secure operations.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                            <a
+                                href="{% url 'wallet:unlock' %}"
+                                class="btn btn-primary px-4"
+                            >
+                                🔓 Unlock Wallet
+                            </a>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <section class="mb-4">
+
+                    <div class="wallet-card locked-wallet-card">
+
+                        <div class="p-4">
+
+                            <div class="locked-wallet-icon">
+                                🔐
+                            </div>
+
+                            <h2 class="h5 fw-bold mb-2">
+                                Wallet Details Protected
+                            </h2>
+
+                            <p class="text-muted small mb-0">
+                                Unlock your wallet to view protected wallet
+                                information and access secure operations.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <section class="mb-4">
+
+                    <div class="notice p-3 p-md-4">
+
+                        <div class="d-flex gap-3">
+
+                            <div class="notice-icon">
+                                🛡️
+                            </div>
+
+                            <div>
+
+                                <div class="fw-bold mb-1">
+                                    Security reminder
+                                </div>
+
+                                <p class="text-muted small mb-0">
+                                    Your wallet remains locked until you
+                                    successfully authenticate. HappyWallet
+                                    never displays private keys or recovery
+                                    phrases on the dashboard.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+            {% else %}
+
+
+                <!-- =================================================
+                     BALANCE
+                ================================================== -->
+
+                <section class="mb-4">
+
+                    <div class="balance-card p-4 p-lg-5">
+
+                        <div class="row align-items-center g-4">
+
+                            <div class="col-lg-8">
+
+                                <div class="balance-label mb-2">
+                                    Total Wallet Balance
+                                </div>
+
+                                <div class="d-flex align-items-baseline
+                                            gap-2 flex-wrap mb-3">
+
+                                    <div class="balance-value">
+                                        {{ balance|default:"0.00000000" }}
+                                    </div>
+
+                                    <span class="text-white-50">
+                                        {{ currency|default:"ETH" }}
+                                    </span>
+
+                                </div>
+
+                                <div class="d-flex flex-wrap gap-2">
+
+                                    {% if network and network != "Not configured" %}
+
+                                        <span class="network-chip">
+                                            ◉ {{ network }}
+
+                                            {% if network_symbol %}
+                                                · {{ network_symbol }}
+                                            {% endif %}
+                                        </span>
+
+                                    {% endif %}
+
+                                    {% if has_address %}
+
+                                        <span class="network-chip">
+                                            ✓ Address ready
+                                        </span>
+
+                                    {% endif %}
+
+                                    {% if blockchain_available %}
+
+                                        <span class="network-chip">
+                                            ✓ Blockchain connected
+                                        </span>
+
+                                    {% else %}
+
+                                        <span class="network-chip">
+                                            ⚠ Blockchain offline
+                                        </span>
+
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+                            <div class="col-lg-4 d-flex
+                                        justify-content-lg-end">
+
+                                <div class="balance-icon">
+                                    💰
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- =================================================
+                     QUICK STATS
+                ================================================== -->
+
+                <section class="row g-3 mb-4">
+
+                    <div class="col-12 col-md-4">
+
+                        <div class="wallet-card stat-card wallet-card-hover">
+
+                            <div class="d-flex
+                                        justify-content-between
+                                        align-items-start">
+
+                                <div>
+
+                                    <div class="stat-label mb-2">
+                                        Wallet Status
+                                    </div>
+
+                                    <div class="stat-value">
+                                        Unlocked
+                                    </div>
+
+                                </div>
+
+                                <div class="stat-icon">
+                                    🔐
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="col-12 col-md-4">
+
+                        <div class="wallet-card stat-card wallet-card-hover">
+
+                            <div class="d-flex
+                                        justify-content-between
+                                        align-items-start">
+
+                                <div>
+
+                                    <div class="stat-label mb-2">
+                                        Supported Assets
+                                    </div>
+
+                                    <div class="stat-value">
+                                        {{ assets|length }}
+                                    </div>
+
+                                </div>
+
+                                <div class="stat-icon">
+                                    🪙
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="col-12 col-md-4">
+
+                        <div class="wallet-card stat-card wallet-card-hover">
+
+                            <div class="d-flex
+                                        justify-content-between
+                                        align-items-start">
+
+                                <div>
+
+                                    <div class="stat-label mb-2">
+                                        Network
+                                    </div>
+
+                                    <div class="stat-value">
+                                        {{ network_symbol|default:"—" }}
+                                    </div>
+
+                                </div>
+
+                                <div class="stat-icon">
+                                    ⛓️
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- =================================================
+                     WALLET DETAILS
+                ================================================== -->
+
+                <section class="row g-4 mb-4">
+
+
+                    <!-- ADDRESS -->
+
+                    <div class="col-12 col-xl-8">
+
+                        <div class="wallet-card h-100">
+
+                            <div class="p-4">
+
+                                <div class="d-flex
+                                            justify-content-between
+                                            align-items-center
+                                            mb-4">
+
+                                    <div>
+
+                                        <h2 class="section-title h5 mb-1">
+                                            Wallet Address
+                                        </h2>
+
+                                        <p class="text-muted small mb-0">
+                                            Your public receiving address.
+                                        </p>
+
+                                    </div>
+
+                                    {% if wallet_address %}
+
+                                        <span class="badge text-bg-success">
+                                            Active
+                                        </span>
+
+                                    {% else %}
+
+                                        <span class="badge text-bg-secondary">
+                                            Not configured
+                                        </span>
+
+                                    {% endif %}
+
+                                </div>
+
+
+                                {% if wallet_address %}
+
+                                    <div class="address-box">
+
+                                        <div class="input-group">
+
+                                            <input
+                                                type="text"
+                                                id="walletAddress"
+                                                class="form-control address-input"
+                                                value="{{ wallet_address }}"
+                                                readonly
+                                                aria-label="Wallet address"
+                                            >
+
+                                            <button
+                                                type="button"
+                                                class="btn btn-dark px-4"
+                                                data-copy-target="walletAddress"
+                                                data-message-target="copyMessage"
+                                            >
+                                                Copy
+                                            </button>
+
+                                        </div>
+
+                                    </div>
+
+                                    <div
+                                        id="copyMessage"
+                                        class="text-success small mt-2 d-none"
+                                        role="status"
+                                    >
+                                        ✓ Wallet address copied.
+                                    </div>
+
+                                    <p class="text-muted small mt-3 mb-0">
+                                        This is a public Ethereum address.
+                                        It can receive ETH and supported
+                                        Ethereum ERC-20 tokens.
+                                    </p>
+
+                                {% else %}
+
+                                    <div class="empty-state">
+
+                                        <div class="empty-icon">
+                                            🔐
+                                        </div>
+
+                                        <h3 class="h6 fw-bold">
+                                            No wallet address
+                                        </h3>
+
+                                        <p class="text-muted small mb-0">
+                                            Your public wallet address will
+                                            appear here after configuration.
+                                        </p>
+
+                                    </div>
+
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- NETWORK -->
+
+                    <div class="col-12 col-xl-4">
+
+                        <div class="wallet-card h-100">
+
+                            <div class="p-4">
+
+                                <h2 class="section-title h5 mb-1">
+                                    Network
+                                </h2>
+
+                                <p class="text-muted small mb-4">
+                                    Current blockchain connection.
+                                </p>
+
+                                <div class="d-flex
+                                            align-items-center
+                                            justify-content-between
+                                            mb-3">
+
+                                    <span class="fw-semibold">
+                                        Network
+                                    </span>
+
+                                    <span class="fw-bold">
+                                        {{ network|default:"Not configured" }}
+                                    </span>
+
+                                </div>
+
+                                <div class="d-flex
+                                            align-items-center
+                                            justify-content-between
+                                            mb-3">
+
+                                    <span class="fw-semibold">
+                                        Symbol
+                                    </span>
+
+                                    <span>
+                                        {{ network_symbol|default:"—" }}
+                                    </span>
+
+                                </div>
+
+                                <div class="d-flex
+                                            align-items-center
+                                            justify-content-between">
+
+                                    <span class="fw-semibold">
+                                        Blockchain
+                                    </span>
+
+                                    {% if blockchain_available %}
+
+                                        <span class="badge text-bg-success">
+                                            Live
+                                        </span>
+
+                                    {% else %}
+
+                                        <span class="badge text-bg-warning">
+                                            Offline
+                                        </span>
+
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- =================================================
+                     QUICK ACTIONS
+                ================================================== -->
+
+                <section class="mb-4">
+
+                    <div class="wallet-card">
+
+                        <div class="p-4">
+
+                            <div class="mb-4">
+
+                                <h2 class="section-title h5 mb-1">
+                                    Quick Actions
+                                </h2>
+
+                                <p class="text-muted small mb-0">
+                                    Common wallet operations.
+                                </p>
+
+                            </div>
+
+                            <div class="row g-3">
+
+
+                                <!-- RECEIVE -->
+
+                                <div class="col-12 col-md-6">
+
+                                    {% if wallet_address %}
+
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-success
+                                                   action-button
+                                                   action-receive
+                                                   w-100"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#receiveModal"
+                                        >
+
+                                            <div class="action-icon">
+                                                ↓
+                                            </div>
+
+                                            <div class="fw-bold">
+                                                Receive
+                                            </div>
+
+                                            <small class="text-muted">
+                                                ETH and supported ERC-20 tokens
+                                            </small>
+
+                                        </button>
+
+                                    {% else %}
+
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-secondary
+                                                   action-button
+                                                   w-100"
+                                            disabled
+                                        >
+
+                                            <div class="action-icon">
+                                                ↓
+                                            </div>
+
+                                            <div class="fw-bold">
+                                                Receive
+                                            </div>
+
+                                            <small class="text-muted">
+                                                Wallet address unavailable
+                                            </small>
+
+                                        </button>
+
+                                    {% endif %}
+
+                                </div>
+
+
+                                <!-- SEND -->
+
+                                <div class="col-12 col-md-6">
+
+                                    {% if wallet_address and assets %}
+
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-primary
+                                                   action-button
+                                                   action-send
+                                                   w-100"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#sendModal"
+                                        >
+
+                                            <div class="action-icon">
+                                                ↑
+                                            </div>
+
+                                            <div class="fw-bold">
+                                                Send
+                                            </div>
+
+                                            <small class="text-muted">
+                                                ETH and supported ERC-20 tokens
+                                            </small>
+
+                                        </button>
+
+                                    {% else %}
+
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-secondary
+                                                   action-button
+                                                   w-100"
+                                            disabled
+                                        >
+
+                                            <div class="action-icon">
+                                                🔒
+                                            </div>
+
+                                            <div class="fw-bold">
+                                                Send
+                                            </div>
+
+                                            <small class="text-muted">
+                                                No sendable asset available
+                                            </small>
+
+                                        </button>
+
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- =================================================
+                     ASSETS
+                ================================================== -->
+
+                <section
+                    class="mb-4"
+                    aria-labelledby="assets-heading"
+                >
+
+                    <div class="card border-0 shadow-sm">
+
+                        <div class="card-body p-4">
+
+                            <div class="d-flex justify-content-between
+                                        align-items-center mb-4">
+
+                                <div>
+
+                                    <h2
+                                        id="assets-heading"
+                                        class="h5 fw-bold mb-1"
+                                    >
+                                        Assets
+                                    </h2>
+
+                                    <p class="text-muted small mb-0">
+                                        ETH and supported Ethereum tokens.
+                                    </p>
+
+                                </div>
+
+                                <span class="badge text-bg-light">
+                                    Ethereum Mainnet
+                                </span>
+
+                            </div>
+
+
+                            {% if assets %}
+
+                                <div class="row g-3">
+
+                                    {% for asset in assets %}
+
+                                        <div class="col-12 col-md-6">
+
+                                            <div
+                                                class="border rounded-3
+                                                       p-3 h-100 asset-card"
+                                            >
+
+                                                <div
+                                                    class="d-flex
+                                                           justify-content-between
+                                                           align-items-start"
+                                                >
+
+                                                    <div
+                                                        class="d-flex
+                                                               align-items-center
+                                                               gap-3"
+                                                    >
+
+                                                        <div class="asset-icon">
+
+                                                            {% if asset.symbol %}
+                                                                {{ asset.symbol|slice:":1"|upper }}
+                                                            {% else %}
+                                                                ?
+                                                            {% endif %}
+
+                                                        </div>
+
+                                                        <div>
+
+                                                            <div class="fw-semibold">
+                                                                {{ asset.name }}
+                                                            </div>
+
+                                                            <div
+                                                                class="small
+                                                                       text-muted"
+                                                            >
+
+                                                                {% if asset.is_native %}
+
+                                                                    Native
+                                                                    •
+                                                                    Ethereum
+
+                                                                {% else %}
+
+                                                                    ERC-20
+                                                                    •
+                                                                    Ethereum
+
+                                                                {% endif %}
+
+                                                            </div>
+
+                                                        </div>
+
+                                                    </div>
+
+                                                    <span
+                                                        class="badge
+                                                               text-bg-primary"
+                                                    >
+                                                        {{ asset.symbol|upper }}
+                                                    </span>
+
+                                                </div>
+
+
+                                                <div class="mt-3">
+
+                                                    <div class="fs-4 fw-bold">
+
+                                                        {{ asset.balance|default:"0" }}
+
+                                                        <span
+                                                            class="fs-6
+                                                                   text-muted"
+                                                        >
+                                                            {{ asset.symbol|upper }}
+                                                        </span>
+
+                                                    </div>
+
+                                                </div>
+
+
+                                                {% if not asset.is_native and asset.address %}
+
+                                                    <div class="mt-2">
+
+                                                        <small
+                                                            class="text-muted
+                                                                   d-block"
+                                                        >
+                                                            Token contract
+                                                        </small>
+
+                                                        <code
+                                                            class="small
+                                                                   text-break"
+                                                        >
+                                                            {{ asset.address }}
+                                                        </code>
+
+                                                    </div>
+
+                                                {% endif %}
+
+                                            </div>
+
+                                        </div>
+
+                                    {% endfor %}
+
+                                </div>
+
+                            {% else %}
+
+                                <div class="empty-state p-4 text-center">
+
+                                    <div
+                                        class="empty-icon mb-2"
+                                        aria-hidden="true"
+                                    >
+                                        🪙
+                                    </div>
+
+                                    <h5 class="fw-bold">
+                                        No assets available
+                                    </h5>
+
+                                    <p class="text-muted small mb-0">
+                                        No ETH or configured ERC-20 token
+                                        balances are currently available.
+                                    </p>
+
+                                </div>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- =================================================
+                     SECURITY
+                ================================================== -->
+
+                <section class="row g-4 mb-4">
+
+                    <div class="col-12">
+
+                        <div class="wallet-card">
+
+                            <div class="p-4">
+
+                                <div class="mb-3">
+
+                                    <h2 class="section-title h5 mb-1">
+                                        Security
+                                    </h2>
+
+                                    <p class="text-muted small mb-0">
+                                        Protection status for your wallet.
+                                    </p>
+
+                                </div>
+
+
+                                <div class="security-item">
+
+                                    <div class="d-flex
+                                                align-items-center
+                                                gap-3">
+
+                                        <span
+                                            class="security-indicator"
+                                        ></span>
+
+                                        <div>
+
+                                            <div class="fw-semibold">
+                                                Wallet
+                                            </div>
+
+                                            <div class="text-muted small">
+                                                Unlocked for secure operations
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                    <span class="badge text-bg-success">
+                                        Unlocked
+                                    </span>
+
+                                </div>
+
+
+                                <div class="security-item">
+
+                                    <div class="d-flex
+                                                align-items-center
+                                                gap-3">
+
+                                        <span
+                                            class="security-indicator"
+                                        ></span>
+
+                                        <div>
+
+                                            <div class="fw-semibold">
+                                                Private Keys
+                                            </div>
+
+                                            <div class="text-muted small">
+                                                Protected by wallet security
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                    <span class="badge text-bg-success">
+                                        Protected
+                                    </span>
+
+                                </div>
+
+
+                                <div class="security-item">
+
+                                    <div class="d-flex
+                                                align-items-center
+                                                gap-3">
+
+                                        {% if usb_vault_connected %}
+
+                                            <span
+                                                class="security-indicator"
+                                            ></span>
+
+                                        {% else %}
+
+                                            <span
+                                                class="security-indicator-muted"
+                                            ></span>
+
+                                        {% endif %}
+
+                                        <div>
+
+                                            <div class="fw-semibold">
+                                                USB Vault
+                                            </div>
+
+                                            <div class="text-muted small">
+
+                                                {% if usb_vault_connected %}
+                                                    Vault detected
+                                                {% else %}
+                                                    Hardware storage unavailable
+                                                {% endif %}
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                    {% if usb_vault_connected %}
+
+                                        <span class="badge text-bg-success">
+                                            Connected
+                                        </span>
+
+                                    {% else %}
+
+                                        <span class="badge text-bg-secondary">
+                                            Offline
+                                        </span>
+
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- =================================================
+                     SECURITY NOTICE
+                ================================================== -->
+
+                <section class="mb-4">
+
+                    <div class="notice p-3 p-md-4">
+
+                        <div class="d-flex gap-3">
+
+                            <div class="notice-icon">
+                                🛡️
+                            </div>
+
+                            <div>
+
+                                <div class="fw-bold mb-1">
+                                    Security reminder
+                                </div>
+
+                                <p class="text-muted small mb-0">
+                                    HappyWallet never displays private keys
+                                    or recovery phrases on the dashboard.
+                                    Unlocking the wallet grants access to
+                                    protected wallet operations; it does not
+                                    expose secret material to the browser.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- =================================================
+                     FOOTER NAVIGATION
+                ================================================== -->
+
+                <div class="d-flex flex-wrap gap-2 pb-5">
+
+                    <a
+                        href="{% url 'dashboard:index' %}"
+                        class="btn btn-outline-secondary"
+                    >
+                        ← Dashboard
+                    </a>
+
+                    <a
+                        href="{% url 'wallet:home' %}"
+                        class="btn btn-dark"
+                    >
+                        Wallet
+                    </a>
+
+                    {% if lock_url %}
+
+                        <a
+                            href="{{ lock_url }}"
+                            class="btn btn-outline-danger"
+                        >
+                            🔒 Lock Wallet
+                        </a>
+
+                    {% elif wallet_lock_url %}
+
+                        <a
+                            href="{{ wallet_lock_url }}"
+                            class="btn btn-outline-danger"
+                        >
+                            🔒 Lock Wallet
+                        </a>
+
+                    {% endif %}
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =============================================================
+     RECEIVE MODAL
+============================================================= -->
+
+{% if wallet_unlocked %}
+
+<div
+    class="modal fade"
+    id="receiveModal"
+    tabindex="-1"
+    aria-labelledby="receiveModalLabel"
+    aria-hidden="true"
+>
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content border-0 shadow">
+
+            <div class="modal-header px-4 py-3">
+
+                <div>
+
+                    <h5
+                        class="modal-title fw-bold"
+                        id="receiveModalLabel"
+                    >
+                        Receive Assets
+                    </h5>
+
+                    <small class="text-muted">
+                        Ethereum Mainnet
+                    </small>
+
+                </div>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"
+                ></button>
+
+            </div>
+
+
+            <div class="modal-body p-4">
+
+                {% if wallet_address %}
+
+                    <!-- ASSET -->
+
+                    <div class="mb-4">
+
+                        <label
+                            for="receiveAsset"
+                            class="form-label fw-semibold"
+                        >
+                            Asset to receive
+                        </label>
+
+                        <select
+                            id="receiveAsset"
+                            class="form-select"
+                        >
+
+                            {% for asset in assets %}
+
+                                <option
+                                    value="{{ asset.symbol|upper }}"
+                                    data-network="{{ asset.network|default:'ethereum-mainnet' }}"
+                                    data-is-native="{{ asset.is_native|yesno:'true,false' }}"
+                                >
+
+                                    {{ asset.name }}
+                                    ({{ asset.symbol|upper }})
+
+                                    {% if asset.is_native %}
+                                        — Native
+                                    {% else %}
+                                        — ERC-20
+                                    {% endif %}
+
+                                </option>
+
+                            {% empty %}
+
+                                <option
+                                    value="ETH"
+                                    data-network="ethereum-mainnet"
+                                    data-is-native="true"
+                                >
+                                    Ethereum (ETH) — Native
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- DESCRIPTION -->
+
+                    <div class="alert alert-primary small">
+
+                        <div class="fw-semibold mb-1">
+                            Receiving on Ethereum Mainnet
+                        </div>
+
+                        <div id="receiveAssetDescription">
+                            Send ETH on Ethereum Mainnet to this address.
+                        </div>
+
+                    </div>
+
+
+                    <!-- ADDRESS -->
+
+                    <div class="address-box">
+
+                        <div class="input-group">
+
+                            <input
+                                type="text"
+                                id="receiveAddress"
+                                class="form-control address-input"
+                                value="{{ wallet_address }}"
+                                readonly
+                                aria-label="Ethereum receiving address"
+                            >
+
+                            <button
+                                type="button"
+                                class="btn btn-dark"
+                                id="copyReceiveAddressButton"
+                            >
+                                Copy
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        id="receiveCopyMessage"
+                        class="text-success small mt-2 d-none"
+                        role="status"
+                    >
+                        ✓ Address copied.
+                    </div>
+
+
+                    <!-- WARNING -->
+
+                    <div class="alert alert-warning small mt-4 mb-0">
+
+                        <strong>Important:</strong>
+
+                        <span id="receiveNetworkWarning">
+                            Only send the selected asset using the Ethereum
+                            network.
+                        </span>
+
+                        <br><br>
+
+                        USDT must be sent as
+                        <strong>USDT — Ethereum (ERC-20)</strong>.
+
+                        Do not send USDT using TRC-20, BEP-20, or another
+                        network.
+
+                    </div>
+
+                {% else %}
+
+                    <div class="empty-state">
+
+                        <div class="empty-icon">
+                            🔐
+                        </div>
+
+                        <h5 class="fw-bold">
+                            Wallet not configured
+                        </h5>
+
+                        <p class="text-muted small mb-0">
+                            Configure a wallet address before receiving
+                            assets.
+                        </p>
+
+                    </div>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =============================================================
+     SEND MODAL
+============================================================= -->
+
+<div
+    class="modal fade"
+    id="sendModal"
+    tabindex="-1"
+    aria-labelledby="sendModalLabel"
+    aria-hidden="true"
+>
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content border-0 shadow">
+
+            <div class="modal-header px-4 py-3">
+
+                <div>
+
+                    <h5
+                        class="modal-title fw-bold"
+                        id="sendModalLabel"
+                    >
+                        Send Assets
+                    </h5>
+
+                    <small class="text-muted">
+                        Ethereum Mainnet
+                    </small>
+
+                </div>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"
+                ></button>
+
+            </div>
+
+
+            <div class="modal-body p-4">
+
+                {% if wallet_address %}
+
+                    <form
+                        id="sendAssetForm"
+                        method="post"
+                        novalidate
+                    >
+
+                        {% csrf_token %}
+
+
+                        <!-- =================================================
+                             ASSET
+                        ================================================== -->
+
+                        <div class="mb-3">
+
+                            <label
+                                for="sendAsset"
+                                class="form-label fw-semibold"
+                            >
+                                Asset
+                            </label>
+
+                            <select
+                                id="sendAsset"
+                                name="asset"
+                                class="form-select"
+                                required
+                            >
+
+                                <option value="">
+                                    Select asset
+                                </option>
+
+                                {% for asset in assets %}
+
+                                    <option
+                                        value="{{ asset.symbol|upper }}"
+                                        data-symbol="{{ asset.symbol|upper }}"
+                                        data-balance="{{ asset.balance|default:'0' }}"
+                                        data-is-native="{{ asset.is_native|yesno:'true,false' }}"
+                                        data-network="{{ asset.network|default:'ethereum-mainnet' }}"
+                                        {% if asset.address %}
+                                            data-contract-address="{{ asset.address }}"
+                                        {% endif %}
+                                    >
+
+                                        {{ asset.name }}
+                                        ({{ asset.symbol|upper }})
+
+                                        {% if asset.is_native %}
+                                            — Native
+                                        {% else %}
+                                            — ERC-20
+                                        {% endif %}
+
+                                    </option>
+
+                                {% endfor %}
+
+                            </select>
+
+                            <div
+                                id="assetError"
+                                class="send-error text-danger small mt-1"
+                                role="alert"
+                            >
+                                Please select an asset.
+                            </div>
+
+                        </div>
+
+
+                        <!-- =================================================
+                             NETWORK
+                        ================================================== -->
+
+                        <div class="mb-3">
+
+                            <label
+                                for="sendNetwork"
+                                class="form-label fw-semibold"
+                            >
+                                Network
+                            </label>
+
+                            <input
+                                type="text"
+                                id="sendNetwork"
+                                class="form-control"
+                                value="Ethereum Mainnet"
+                                readonly
+                            >
+
+                        </div>
+
+
+                        <!-- =================================================
+                             AVAILABLE BALANCE
+                        ================================================== -->
+
+                        <div
+                            id="sendBalanceInfo"
+                            class="alert alert-light border small d-none"
+                        >
+
+                            Available:
+
+                            <strong id="sendAvailableBalance">
+                                0
+                            </strong>
+
+                            <span
+                                id="sendAvailableBalanceSymbol"
+                            >
+                                ETH
+                            </span>
+
+                        </div>
+
+
+                        <!-- =================================================
+                             RECIPIENT
+                        ================================================== -->
+
+                        <div class="mb-3">
+
+                            <label
+                                for="recipientAddress"
+                                class="form-label fw-semibold"
+                            >
+                                Recipient address
+                            </label>
+
+                            <input
+                                id="recipientAddress"
+                                name="recipient_address"
+                                type="text"
+                                class="form-control"
+                                placeholder="0x..."
+                                autocomplete="off"
+                                spellcheck="false"
+                                required
+                            >
+
+                            <div
+                                id="recipientAddressError"
+                                class="send-error text-danger small mt-1"
+                                role="alert"
+                            >
+                                Enter a valid Ethereum address.
+                            </div>
+
+                        </div>
+
+
+                        <!-- =================================================
+                             AMOUNT
+                        ================================================== -->
+
+                        <div class="mb-3">
+
+                            <label
+                                for="sendAmount"
+                                class="form-label fw-semibold"
+                            >
+                                Amount
+                            </label>
+
+                            <div class="input-group">
+
+                                <input
+                                    id="sendAmount"
+                                    name="amount"
+                                    type="number"
+                                    class="form-control"
+                                    placeholder="0.00"
+                                    min="0"
+                                    step="any"
+                                    inputmode="decimal"
+                                    required
+                                >
+
+                                <span
+                                    class="input-group-text"
+                                    id="sendAmountSymbol"
+                                >
+                                    ETH
+                                </span>
+
+                            </div>
+
+                            <div
+                                id="sendAmountError"
+                                class="send-error text-danger small mt-1"
+                                role="alert"
+                            ></div>
+
+                        </div>
+
+
+                        <!-- =================================================
+                             TRANSACTION TYPE
+                        ================================================== -->
+
+                        <div
+                            id="sendTransactionType"
+                            class="alert alert-info small"
+                        >
+                            Select an asset to see the transaction type.
+                        </div>
+
+
+                        <!-- =================================================
+                             SECURITY
+                        ================================================== -->
+
+                        <div class="alert alert-warning small">
+
+                            <strong>Security:</strong>
+
+                            HappyWallet will validate the recipient, asset,
+                            network, amount, balance, gas requirements and
+                            transaction before signing.
+
+                            Private keys never enter this form or the browser.
+
+                        </div>
+
+
+                        <!-- =================================================
+                             SUBMIT
+                        ================================================== -->
+
+                        <button
+                            type="submit"
+                            id="sendAssetsButton"
+                            class="btn btn-primary w-100"
+                            disabled
+                        >
+                            Continue
+                        </button>
+
+                    </form>
+
+                {% else %}
+
+                    <div class="empty-state">
+
+                        <div class="empty-icon">
+                            🔐
+                        </div>
+
+                        <h5 class="fw-bold">
+                            Wallet not configured
+                        </h5>
+
+                        <p class="text-muted small mb-0">
+                            Configure a wallet before sending assets.
+                        </p>
+
+                    </div>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endif %}
+
+
+<!-- =============================================================
+     WALLET JAVASCRIPT
+============================================================= -->
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    "use strict";
+
+
+    /* =========================================================
+       CONSTANTS
+    ========================================================= */
+
+    const ETHEREUM_ADDRESS_PATTERN =
+        /^0x[a-fA-F0-9]{40}$/;
+
+
+    /* =========================================================
+       COPY ADDRESS
+    ========================================================= */
+
+    function showCopyMessage(message) {
+
+        if (!message) {
+            return;
+        }
+
+        message.classList.remove("d-none");
+
+        window.setTimeout(function () {
+            message.classList.add("d-none");
+        }, 2200);
+    }
+
+
+    function fallbackCopy(text, message) {
+
+        const textarea =
+            document.createElement("textarea");
+
+        textarea.value = text;
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        textarea.style.top = "0";
+
+        document.body.appendChild(textarea);
+
+        textarea.focus();
+        textarea.select();
+
+        try {
+
+            document.execCommand("copy");
+
+            showCopyMessage(message);
+
+        } finally {
+
+            document.body.removeChild(textarea);
+
+        }
+    }
+
+
+    function copyText(text, message) {
+
+        if (!text) {
+            return;
+        }
+
+        if (
+            navigator.clipboard &&
+            window.isSecureContext
+        ) {
+
+            navigator.clipboard
+                .writeText(text)
+                .then(function () {
+
+                    showCopyMessage(message);
+
+                })
+                .catch(function () {
+
+                    fallbackCopy(
+                        text,
+                        message
+                    );
+
+                });
+
+        } else {
+
+            fallbackCopy(
+                text,
+                message
+            );
+
+        }
+    }
+
+
+    document
+        .querySelectorAll("[data-copy-target]")
+        .forEach(function (button) {
+
+            button.addEventListener(
+                "click",
+                function () {
+
+                    const targetId =
+                        button.getAttribute(
+                            "data-copy-target"
+                        );
+
+                    const messageId =
+                        button.getAttribute(
+                            "data-message-target"
+                        );
+
+                    const target =
+                        document.getElementById(
+                            targetId
+                        );
+
+                    const message =
+                        document.getElementById(
+                            messageId
+                        );
+
+                    if (target) {
+
+                        copyText(
+                            target.value,
+                            message
+                        );
+
+                    }
+
+                }
+            );
+
+        });
+
+
+    /* =========================================================
+       RECEIVE
+    ========================================================= */
+
+    const receiveAsset =
+        document.getElementById(
+            "receiveAsset"
+        );
+
+    const receiveAssetDescription =
+        document.getElementById(
+            "receiveAssetDescription"
+        );
+
+    const receiveNetworkWarning =
+        document.getElementById(
+            "receiveNetworkWarning"
+        );
+
+
+    function updateReceiveAsset() {
+
+        if (!receiveAsset) {
+            return;
+        }
+
+        const option =
+            receiveAsset.options[
+                receiveAsset.selectedIndex
+            ];
+
+        if (!option || !option.value) {
+            return;
+        }
+
+        const symbol =
+            option.value.toUpperCase();
+
+        const isNative =
+            option.dataset.isNative === "true";
+
+
+        if (receiveAssetDescription) {
+
+            if (isNative) {
+
+                receiveAssetDescription.textContent =
+                    "Send ETH on Ethereum Mainnet to this address.";
+
+            } else {
+
+                receiveAssetDescription.textContent =
+                    "Send " +
+                    symbol +
+                    " using its Ethereum ERC-20 network to this address.";
+
+            }
+
+        }
+
+
+        if (receiveNetworkWarning) {
+
+            if (isNative) {
+
+                receiveNetworkWarning.textContent =
+                    "Only send ETH using the Ethereum network.";
+
+            } else {
+
+                receiveNetworkWarning.textContent =
+                    "Only send " +
+                    symbol +
+                    " using the Ethereum ERC-20 network.";
+
+            }
+
+        }
+
+    }
+
+
+    if (receiveAsset) {
+
+        receiveAsset.addEventListener(
+            "change",
+            updateReceiveAsset
+        );
+
+        updateReceiveAsset();
+
+    }
+
+
+    const copyReceiveAddressButton =
+        document.getElementById(
+            "copyReceiveAddressButton"
+        );
+
+
+    if (copyReceiveAddressButton) {
+
+        copyReceiveAddressButton.addEventListener(
+            "click",
+            function () {
+
+                const input =
+                    document.getElementById(
+                        "receiveAddress"
+                    );
+
+                const message =
+                    document.getElementById(
+                        "receiveCopyMessage"
+                    );
+
+                if (input) {
+
+                    copyText(
+                        input.value,
+                        message
+                    );
+
+                }
+
+            }
+        );
+
+    }
+
+
+    /* =========================================================
+       SEND FORM
+    ========================================================= */
+
+    const sendForm =
+        document.getElementById(
+            "sendAssetForm"
+        );
+
+    if (!sendForm) {
+        return;
+    }
+
+
+    const sendAsset =
+        document.getElementById(
+            "sendAsset"
+        );
+
+    const recipientAddress =
+        document.getElementById(
+            "recipientAddress"
+        );
+
+    const sendAmount =
+        document.getElementById(
+            "sendAmount"
+        );
+
+    const sendAmountSymbol =
+        document.getElementById(
+            "sendAmountSymbol"
+        );
+
+    const sendAvailableBalance =
+        document.getElementById(
+            "sendAvailableBalance"
+        );
+
+    const sendAvailableBalanceSymbol =
+        document.getElementById(
+            "sendAvailableBalanceSymbol"
+        );
+
+    const sendBalanceInfo =
+        document.getElementById(
+            "sendBalanceInfo"
+        );
+
+    const sendTransactionType =
+        document.getElementById(
+            "sendTransactionType"
+        );
+
+    const sendButton =
+        document.getElementById(
+            "sendAssetsButton"
+        );
+
+    const assetError =
+        document.getElementById(
+            "assetError"
+        );
+
+    const recipientAddressError =
+        document.getElementById(
+            "recipientAddressError"
+        );
+
+    const sendAmountError =
+        document.getElementById(
+            "sendAmountError"
+        );
+
+
+    /* =========================================================
+       ASSET SELECTION
+    ========================================================= */
+
+    function getSelectedAsset() {
+
+        if (!sendAsset) {
+            return null;
+        }
+
+        const option =
+            sendAsset.options[
+                sendAsset.selectedIndex
+            ];
+
+        if (!option || !option.value) {
+            return null;
+        }
+
+        return option;
+    }
+
+
+    function updateSelectedAsset() {
+
+        const option =
+            getSelectedAsset();
+
+
+        if (!option) {
+
+            if (sendBalanceInfo) {
+                sendBalanceInfo.classList.add(
+                    "d-none"
+                );
+            }
+
+            if (sendAmountSymbol) {
+                sendAmountSymbol.textContent =
+                    "ETH";
+            }
+
+            if (sendAvailableBalanceSymbol) {
+                sendAvailableBalanceSymbol.textContent =
+                    "ETH";
+            }
+
+            if (sendTransactionType) {
+                sendTransactionType.textContent =
+                    "Select an asset to see the transaction type.";
+            }
+
+            updateSendButton();
+
+            return;
+        }
+
+
+        const symbol =
+            (
+                option.dataset.symbol ||
+                option.value
+            ).toUpperCase();
+
+        const balance =
+            option.dataset.balance ||
+            "0";
+
+        const isNative =
+            option.dataset.isNative === "true";
+
+
+        if (sendAmountSymbol) {
+
+            sendAmountSymbol.textContent =
+                symbol;
+
+        }
+
+
+        if (sendAvailableBalance) {
+
+            sendAvailableBalance.textContent =
+                balance;
+
+        }
+
+
+        if (sendAvailableBalanceSymbol) {
+
+            sendAvailableBalanceSymbol.textContent =
+                symbol;
+
+        }
+
+
+        if (sendBalanceInfo) {
+
+            sendBalanceInfo.classList.remove(
+                "d-none"
+            );
+
+        }
+
+
+        if (sendTransactionType) {
+
+            if (isNative) {
+
+                sendTransactionType.innerHTML =
+                    "<strong>Native ETH transfer</strong> — " +
+                    "the recipient will receive ETH directly.";
+
+            } else {
+
+                sendTransactionType.innerHTML =
+                    "<strong>ERC-20 transfer</strong> — " +
+                    symbol +
+                    " will be transferred through its token contract. " +
+                    "ETH is still required to pay Ethereum network gas.";
+
+            }
+
+        }
+
+
+        updateSendButton();
+
+    }
+
+
+    /* =========================================================
+       RECIPIENT VALIDATION
+    ========================================================= */
+
+    function validateRecipient() {
+
+        if (!recipientAddress) {
+            return false;
+        }
+
+        const value =
+            recipientAddress.value.trim();
+
+
+        if (!value) {
+
+            recipientAddress.classList.remove(
+                "is-valid",
+                "is-invalid"
+            );
+
+            if (recipientAddressError) {
+                recipientAddressError.classList.remove(
+                    "is-visible"
+                );
+            }
+
+            return false;
+
+        }
+
+
+        const valid =
+            ETHEREUM_ADDRESS_PATTERN.test(
+                value
+            );
+
+
+        if (valid) {
+
+            recipientAddress.classList.remove(
+                "is-invalid"
+            );
+
+            recipientAddress.classList.add(
+                "is-valid"
+            );
+
+            if (recipientAddressError) {
+                recipientAddressError.classList.remove(
+                    "is-visible"
+                );
+            }
+
+            return true;
+
+        }
+
+
+        recipientAddress.classList.remove(
+            "is-valid"
+        );
+
+        recipientAddress.classList.add(
+            "is-invalid"
+        );
+
+        if (recipientAddressError) {
+            recipientAddressError.classList.add(
+                "is-visible"
+            );
+        }
+
+        return false;
+
+    }
+
+
+    /* =========================================================
+       AMOUNT VALIDATION
+    ========================================================= */
+
+    function validateAmount() {
+
+        if (!sendAmount) {
+            return false;
+        }
+
+        const option =
+            getSelectedAsset();
+
+        if (!option) {
+            return false;
+        }
+
+
+        const amount =
+            Number(sendAmount.value);
+
+
+        if (
+            !Number.isFinite(amount) ||
+            amount <= 0
+        ) {
+
+            sendAmount.classList.remove(
+                "is-valid"
+            );
+
+            sendAmount.classList.add(
+                "is-invalid"
+            );
+
+            if (sendAmountError) {
+
+                sendAmountError.textContent =
+                    "Enter an amount greater than zero.";
+
+                sendAmountError.classList.add(
+                    "is-visible"
+                );
+
+            }
+
+            return false;
+
+        }
+
+
+        const available =
+            Number(
+                option.dataset.balance || "0"
+            );
+
+
+        if (
+            Number.isFinite(available) &&
+            amount > available
+        ) {
+
+            sendAmount.classList.remove(
+                "is-valid"
+            );
+
+            sendAmount.classList.add(
+                "is-invalid"
+            );
+
+            if (sendAmountError) {
+
+                sendAmountError.textContent =
+                    "Amount exceeds the available balance.";
+
+                sendAmountError.classList.add(
+                    "is-visible"
+                );
+
+            }
+
+            return false;
+
+        }
+
+
+        sendAmount.classList.remove(
+            "is-invalid"
+        );
+
+        sendAmount.classList.add(
+            "is-valid"
+        );
+
+        if (sendAmountError) {
+            sendAmountError.classList.remove(
+                "is-visible"
+            );
+        }
+
+        return true;
+
+    }
+
+
+    /* =========================================================
+       FORM VALIDATION
+    ========================================================= */
+
+    function validateForm() {
+
+        const assetSelected =
+            Boolean(
+                sendAsset &&
+                sendAsset.value
+            );
+
+        const recipientValid =
+            validateRecipient();
+
+        const amountValid =
+            validateAmount();
+
+
+        if (sendButton) {
+
+            sendButton.disabled =
+                !assetSelected ||
+                !recipientValid ||
+                !amountValid;
+
+        }
+
+        return (
+            assetSelected &&
+            recipientValid &&
+            amountValid
+        );
+
+    }
+
+
+    /* =========================================================
+       EVENT LISTENERS
+    ========================================================= */
+
+    sendAsset.addEventListener(
+        "change",
+        updateSelectedAsset
+    );
+
+
+    recipientAddress.addEventListener(
+        "input",
+        validateForm
+    );
+
+
+    sendAmount.addEventListener(
+        "input",
+        validateForm
+    );
+
+
+    /* =========================================================
+       SUBMIT
+    ========================================================= */
+
+    sendForm.addEventListener(
+        "submit",
+        function (event) {
+
+            /*
+             * The browser only performs UI validation.
+             *
+             * It does NOT:
+             *
+             * - access private keys
+             * - decrypt wallet secrets
+             * - sign transactions
+             * - broadcast transactions
+             */
+
+            if (!validateForm()) {
+
+                event.preventDefault();
+                return;
+
+            }
+
+
+            /*
+             * At this point the browser has collected:
+             *
+             *     asset
+             *     recipient_address
+             *     amount
+             *
+             * The backend must perform the authoritative validation
+             * and transaction workflow.
+             *
+             * The form is intentionally allowed to submit normally
+             * so Django can receive the POST request once the action
+             * endpoint is wired.
+             */
+
+            sendButton.disabled = true;
+
+            sendButton.textContent =
+                "Preparing…";
+
+        }
+    );
+
+
+    /* =========================================================
+       INITIAL STATE
+    ========================================================= */
+
+    updateSelectedAsset();
+    validateForm();
+
+});
+</script>
+
+{% endblock %}

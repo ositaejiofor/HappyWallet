@@ -1,0 +1,743 @@
+{% extends "base.html" %}
+
+{% block title %}Portfolio | {{ app_name|default:"HappyWallet" }}{% endblock %}
+
+{% block content %}
+
+<main class="container py-5">
+
+    <!-- =========================================================
+         PORTFOLIO HEADER
+    ========================================================== -->
+
+    <section class="mb-4">
+
+        <div class="d-flex flex-column flex-md-row
+                    justify-content-between
+                    align-items-md-center
+                    gap-3">
+
+            <div>
+
+                <span class="text-muted small">
+                    {{ app_name|default:"HappyWallet" }}
+                </span>
+
+                <h1 class="fw-bold mt-1 mb-2">
+                    Portfolio
+                </h1>
+
+                <p class="text-muted mb-0">
+                    View your digital assets and portfolio allocation.
+                </p>
+
+            </div>
+
+
+            <div>
+
+                <a
+                    href="{% url 'dashboard:index' %}"
+                    class="btn btn-outline-secondary"
+                >
+                    ← Dashboard
+                </a>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =========================================================
+         BLOCKCHAIN STATUS
+    ========================================================== -->
+
+    <section class="mb-4">
+
+        {% if blockchain_available %}
+
+            <div class="alert alert-success
+                        border-0 shadow-sm
+                        d-flex flex-column flex-md-row
+                        justify-content-between
+                        align-items-md-center
+                        gap-2 mb-0">
+
+                <div>
+
+                    <strong>
+                        Blockchain Connected
+                    </strong>
+
+                    <span class="ms-md-2">
+                        Live portfolio data is available.
+                    </span>
+
+                </div>
+
+
+                {% if balance.network %}
+
+                    <span class="fw-semibold">
+                        {{ balance.network }}
+                    </span>
+
+                {% endif %}
+
+            </div>
+
+        {% elif wallet %}
+
+            <div class="alert alert-warning
+                        border-0 shadow-sm
+                        mb-0">
+
+                <strong>
+                    Blockchain Unavailable
+                </strong>
+
+                <span class="ms-2">
+                    Portfolio data could not be retrieved right now.
+                </span>
+
+            </div>
+
+        {% else %}
+
+            <div class="alert alert-secondary
+                        border-0 shadow-sm
+                        mb-0">
+
+                <strong>
+                    No Wallet
+                </strong>
+
+                <span class="ms-2">
+                    Create a wallet to begin tracking your portfolio.
+                </span>
+
+            </div>
+
+        {% endif %}
+
+    </section>
+
+
+    <!-- =========================================================
+         PORTFOLIO OVERVIEW
+    ========================================================== -->
+
+    <section class="row g-4 mb-4">
+
+
+        <!-- PORTFOLIO VALUE -->
+
+        <div class="col-12 col-md-4">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body p-4">
+
+                    <p class="text-muted small mb-2">
+                        Portfolio Value
+                    </p>
+
+                    <h2 class="fw-bold mb-2">
+                        —
+                    </h2>
+
+                    <p class="text-muted small mb-0">
+                        Portfolio valuation is not available yet.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ASSETS -->
+
+        <div class="col-12 col-md-4">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body p-4">
+
+                    <p class="text-muted small mb-2">
+                        Assets
+                    </p>
+
+                    <h2 class="fw-bold mb-2">
+
+                        {% if balance %}
+                            {{ balance.asset_count }}
+                        {% else %}
+                            0
+                        {% endif %}
+
+                    </h2>
+
+                    <p class="text-muted small mb-0">
+
+                        {% if balance %}
+
+                            {% if balance.asset_count == 1 %}
+                                Asset tracked on your wallet.
+                            {% else %}
+                                Assets tracked on your wallet.
+                            {% endif %}
+
+                        {% else %}
+
+                            No portfolio assets are currently tracked.
+
+                        {% endif %}
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- PORTFOLIO STATUS -->
+
+        <div class="col-12 col-md-4">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body p-4">
+
+                    <p class="text-muted small mb-2">
+                        Portfolio Status
+                    </p>
+
+                    {% if blockchain_available %}
+
+                        <h2 class="fw-bold mb-2">
+                            Connected
+                        </h2>
+
+                        <p class="text-muted small mb-0">
+                            Portfolio data is available.
+                        </p>
+
+                    {% elif wallet %}
+
+                        <h2 class="fw-bold mb-2">
+                            Unavailable
+                        </h2>
+
+                        <p class="text-muted small mb-0">
+                            Blockchain data is temporarily unavailable.
+                        </p>
+
+                    {% else %}
+
+                        <h2 class="fw-bold mb-2">
+                            Ready
+                        </h2>
+
+                        <p class="text-muted small mb-0">
+                            Portfolio tracking is ready for configuration.
+                        </p>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =========================================================
+         WALLET INFORMATION
+    ========================================================== -->
+
+    {% if wallet %}
+
+    <section class="mb-4">
+
+        <div class="card border-0 shadow-sm">
+
+            <div class="card-body p-4">
+
+                <div class="d-flex flex-column flex-md-row
+                            justify-content-between
+                            gap-3">
+
+                    <div>
+
+                        <h2 class="h5 fw-bold mb-1">
+                            Wallet
+                        </h2>
+
+                        <p class="text-muted small mb-0">
+
+                            {% if balance and balance.network %}
+
+                                {{ balance.network }}
+
+                            {% elif wallet.network %}
+
+                                {{ wallet.network.name }}
+
+                            {% else %}
+
+                                Network not configured
+
+                            {% endif %}
+
+                        </p>
+
+                    </div>
+
+
+                    <div>
+
+                        {% if blockchain_available %}
+
+                            <span class="badge bg-success">
+                                Blockchain Connected
+                            </span>
+
+                        {% else %}
+
+                            <span class="badge bg-warning text-dark">
+                                Blockchain Unavailable
+                            </span>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+
+                <hr>
+
+
+                <div class="row g-4">
+
+
+                    <!-- PUBLIC ADDRESS -->
+
+                    <div class="col-12 col-md-8">
+
+                        <p class="text-muted small mb-1">
+                            Public Address
+                        </p>
+
+                        {% if balance and balance.address %}
+
+                            <div class="bg-light rounded p-3">
+
+                                <code class="text-break">
+                                    {{ balance.address }}
+                                </code>
+
+                            </div>
+
+                        {% elif wallet.address %}
+
+                            <div class="bg-light rounded p-3">
+
+                                <code class="text-break">
+                                    {{ wallet.address }}
+                                </code>
+
+                            </div>
+
+                        {% else %}
+
+                            <div class="alert alert-secondary mb-0">
+                                No public wallet address has been configured.
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+
+                    <!-- NETWORK -->
+
+                    <div class="col-12 col-md-4">
+
+                        <p class="text-muted small mb-1">
+                            Network
+                        </p>
+
+                        <div class="fw-semibold">
+
+                            {% if balance and balance.network %}
+
+                                {{ balance.network }}
+
+                            {% elif wallet.network %}
+
+                                {{ wallet.network.name }}
+
+                            {% else %}
+
+                                Not configured
+
+                            {% endif %}
+
+                        </div>
+
+
+                        {% if balance and balance.network_symbol %}
+
+                            <small class="text-muted">
+                                {{ balance.network_symbol }}
+                            </small>
+
+                        {% elif wallet.network and wallet.network.symbol %}
+
+                            <small class="text-muted">
+                                {{ wallet.network.symbol }}
+                            </small>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+    {% endif %}
+
+
+    <!-- =========================================================
+         TOKEN BALANCES
+    ========================================================== -->
+
+    {% if balance and balance.tokens %}
+
+    <section class="mb-4">
+
+        <div class="card border-0 shadow-sm">
+
+            <div class="card-body p-4">
+
+                <div class="d-flex justify-content-between
+                            align-items-center mb-4">
+
+                    <div>
+
+                        <h2 class="h5 fw-bold mb-1">
+                            Token Balances
+                        </h2>
+
+                        <p class="text-muted small mb-0">
+                            Tokens currently held by your wallet.
+                        </p>
+
+                    </div>
+
+
+                    <span class="badge bg-light text-dark">
+
+                        {{ balance.tokens|length }}
+
+                        {% if balance.tokens|length == 1 %}
+                            token
+                        {% else %}
+                            tokens
+                        {% endif %}
+
+                    </span>
+
+                </div>
+
+
+                <div class="table-responsive">
+
+                    <table class="table table-hover align-middle mb-0">
+
+                        <thead>
+
+                            <tr>
+
+                                <th scope="col">
+                                    Asset
+                                </th>
+
+                                <th scope="col">
+                                    Contract
+                                </th>
+
+                                <th scope="col" class="text-end">
+                                    Balance
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                            {% for token in balance.tokens %}
+
+                            <tr>
+
+                                <td>
+
+                                    <div class="fw-semibold">
+                                        {{ token.name }}
+                                    </div>
+
+                                    <small class="text-muted">
+                                        {{ token.symbol }}
+                                    </small>
+
+                                </td>
+
+
+                                <td>
+
+                                    <code class="small text-break">
+                                        {{ token.address }}
+                                    </code>
+
+                                </td>
+
+
+                                <td class="text-end">
+
+                                    <div class="fw-semibold">
+                                        {{ token.balance }}
+                                        {{ token.symbol }}
+                                    </div>
+
+                                    <small class="text-muted">
+                                        {{ token.decimals }} decimals
+                                    </small>
+
+                                </td>
+
+                            </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    {% elif wallet %}
+
+    <section class="mb-4">
+
+        <div class="card border-0 shadow-sm">
+
+            <div class="card-body p-4 text-center">
+
+                <div class="fs-1 mb-3" aria-hidden="true">
+                    🪙
+                </div>
+
+                <h2 class="h5 fw-bold">
+                    No Token Balances
+                </h2>
+
+                <p class="text-muted mb-0">
+                    No token balances are currently available
+                    for this wallet.
+                </p>
+
+            </div>
+
+        </div>
+
+    </section>
+
+    {% endif %}
+
+
+    <!-- =========================================================
+         PORTFOLIO INFORMATION
+    ========================================================== -->
+
+    <section class="mb-4">
+
+        <div class="card border-0 shadow-sm">
+
+            <div class="card-body p-4">
+
+                <h2 class="h5 fw-bold mb-4">
+                    Portfolio Information
+                </h2>
+
+
+                <div class="row g-3">
+
+
+                    <!-- VALUATION -->
+
+                    <div class="col-12 col-md-3">
+
+                        <div class="bg-light rounded p-3 h-100">
+
+                            <p class="text-muted small mb-1">
+                                Valuation
+                            </p>
+
+                            <div class="fw-semibold">
+                                Not available
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ALLOCATION -->
+
+                    <div class="col-12 col-md-3">
+
+                        <div class="bg-light rounded p-3 h-100">
+
+                            <p class="text-muted small mb-1">
+                                Allocation
+                            </p>
+
+                            <div class="fw-semibold">
+                                Not configured
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- TRACKED ASSETS -->
+
+                    <div class="col-12 col-md-3">
+
+                        <div class="bg-light rounded p-3 h-100">
+
+                            <p class="text-muted small mb-1">
+                                Tracked Assets
+                            </p>
+
+                            <div class="fw-semibold">
+
+                                {% if balance %}
+                                    {{ balance.asset_count }}
+                                {% else %}
+                                    0
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- STATUS -->
+
+                    <div class="col-12 col-md-3">
+
+                        <div class="bg-light rounded p-3 h-100">
+
+                            <p class="text-muted small mb-1">
+                                Status
+                            </p>
+
+                            <div class="fw-semibold">
+
+                                {% if blockchain_available %}
+                                    Connected
+                                {% elif wallet %}
+                                    Unavailable
+                                {% else %}
+                                    Ready
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =========================================================
+         FOOTER NAVIGATION
+    ========================================================== -->
+
+    <section>
+
+        <div class="card border-0 bg-light">
+
+            <div class="card-body p-4">
+
+                <div class="d-flex flex-column flex-md-row
+                            justify-content-between
+                            align-items-md-center
+                            gap-3">
+
+                    <div>
+
+                        <h2 class="h6 fw-bold mb-1">
+                            {{ app_name|default:"HappyWallet" }}
+                        </h2>
+
+                        <p class="text-muted small mb-0">
+                            Manage your wallet and portfolio from
+                            the dashboard.
+                        </p>
+
+                    </div>
+
+
+                    <a
+                        href="{% url 'dashboard:index' %}"
+                        class="btn btn-outline-secondary"
+                    >
+                        ← Dashboard
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+</main>
+
+{% endblock %}

@@ -1,0 +1,199 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <!-- =========================================================
+         DOCUMENT META
+    ========================================================== -->
+
+    <meta charset="utf-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <meta
+        name="description"
+        content="{% block meta_description %}HappyWallet secure digital wallet platform.{% endblock %}"
+    >
+
+    <meta
+        name="theme-color"
+        content="#111827"
+    >
+
+    <meta
+        name="color-scheme"
+        content="light"
+    >
+
+
+    <!-- =========================================================
+         PAGE TITLE
+    ========================================================== -->
+
+    <title>
+        {% block title %}HappyWallet{% endblock %}
+    </title>
+
+
+    <!-- =========================================================
+         FAVICON
+    ========================================================== -->
+
+    <link
+        rel="icon"
+        href="{% static 'images/favicon.ico' %}"
+        type="image/x-icon"
+    >
+
+
+    <!-- =========================================================
+         EXTRA META
+    ========================================================== -->
+
+    {% block extra_meta %}
+    {% endblock %}
+
+
+    <!-- =========================================================
+         BOOTSTRAP
+    ========================================================== -->
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+        crossorigin="anonymous"
+    >
+
+
+    <!-- =========================================================
+         HAPPYWALLET APPLICATION CSS
+    ========================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="{% static 'css/app.css' %}"
+    >
+
+
+    <!-- =========================================================
+         PAGE-SPECIFIC CSS
+    ========================================================== -->
+
+    {% block extra_css %}
+    {% endblock %}
+
+</head>
+
+
+<body>
+
+<!-- =============================================================
+     GLOBAL NAVIGATION
+============================================================== -->
+
+{% include "includes/navigation.html" %}
+
+
+<!-- =============================================================
+     MAIN CONTENT
+============================================================== -->
+
+<main
+    id="main-content"
+    class="main-content"
+    tabindex="-1"
+>
+
+    <!-- =========================================================
+         DJANGO MESSAGES
+    ========================================================== -->
+
+    {% if messages %}
+
+        <div
+            class="container messages"
+            role="status"
+            aria-live="polite"
+        >
+
+            {% for message in messages %}
+
+                <div
+                    class="message message--{{ message.tags|default:'info' }}"
+                >
+                    {{ message }}
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    {% endif %}
+
+
+    <!-- =========================================================
+         PAGE CONTENT
+    ========================================================== -->
+
+    {% block content %}
+    {% endblock %}
+
+</main>
+
+
+<!-- =============================================================
+     SITE FOOTER
+============================================================== -->
+
+<footer class="site-footer">
+
+    <div class="container site-footer__inner">
+
+        <p class="site-footer__copyright">
+
+            &copy; {% now "Y" %}
+
+            <span>
+                HappyWallet
+            </span>
+
+            <span aria-hidden="true">
+                ·
+            </span>
+
+            All rights reserved.
+
+        </p>
+
+    </div>
+
+</footer>
+
+
+<!-- =============================================================
+     BOOTSTRAP JAVASCRIPT
+============================================================== -->
+
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+    crossorigin="anonymous"
+></script>
+
+
+<!-- =============================================================
+     PAGE-SPECIFIC JAVASCRIPT
+============================================================== -->
+
+{% block extra_js %}
+{% endblock %}
+
+
+</body>
+
+</html>
