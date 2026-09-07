@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <div class="d-flex flex-column flex-md-row justify-content-between
+                align-items-md-center gap-3 mb-4">
+
+        <div>
+            <h1 class="mb-1">Token Scanner</h1>
+
+            <p class="text-muted mb-0">
+                Real blockchain token discovery and read-only risk analysis.
+            </p>
+        </div>
+
+        <div>
+            <span class="badge text-bg-success">
+                Read-only
+            </span>
+        </div>
+
+    </div>
+
+
+    {% if tokens %}
+
+        <div class="card shadow-sm">
+
+            <div class="card-header bg-body">
+
+                <div class="d-flex justify-content-between align-items-center">
+
+                    <div>
+                        <h2 class="h5 mb-0">
+                            Discovered Tokens
+                        </h2>
+
+                        <small class="text-muted">
+                            Showing the most recently discovered tokens.
+                        </small>
+                    </div>
+
+                    <span class="badge text-bg-secondary">
+                        {{ tokens|length }}
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="card-body p-0">
+
+                <div class="table-responsive">
+
+                    <table class="table table-hover align-middle mb-0">
+
+                        <caption class="visually-hidden">
+                            Recently discovered blockchain tokens and their
+                            available scanner metrics.
+                        </caption>
+
+                        <thead>
+
+                            <tr>
+                                <th scope="col">Token</th>
+                                <th scope="col">Chain</th>
+                                <th scope="col">Contract</th>
+                                <th scope="col">Liquidity</th>
+                                <th scope="col">Holders</th>
+                                <th scope="col">24h Volume</th>
+                                <th scope="col">Risk</th>
+                                <th scope="col">First Seen</th>
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                            {% for token in tokens %}
+
+                                <tr>
+
+                                    <td>
+
+                                        <div class="fw-semibold">
+                                            {{ token.name|default:"Unknown token" }}
+                                        </div>
+
+                                        {% if token.symbol %}
+
+                                            <div class="text-muted small">
+                                                {{ token.symbol }}
+                                            </div>
+
+                                        {% else %}
+
+                                            <div class="text-muted small">
+                                                Symbol unavailable
+                                            </div>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if token.chain %}
+
+                                            {{ token.chain }}
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                Unavailable
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if token.contract_address %}
+
+                                            <code class="small"
+                                                  title="{{ token.contract_address }}">
+                                                {{ token.contract_address }}
+                                            </code>
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                Unavailable
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if token.liquidity_usd is not None %}
+
+                                            <span class="text-nowrap">
+                                                ${{ token.liquidity_usd|floatformat:2 }}
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                Unavailable
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if token.holder_count is not None %}
+
+                                            {{ token.holder_count }}
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                Unavailable
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if token.volume_24h_usd is not None %}
+
+                                            <span class="text-nowrap">
+                                                ${{ token.volume_24h_usd|floatformat:2 }}
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                Unavailable
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if token.risk_score is not None %}
+
+                                            <span class="badge text-bg-secondary"
+                                                  title="Risk score from the token scanner">
+                                                {{ token.risk_score }}/100
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                Unavailable
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if token.first_seen_at %}
+
+                                            <time datetime="{{ token.first_seen_at|date:'c' }}"
+                                                  title="{{ token.first_seen_at }}">
+                                                {{ token.first_seen_at|date:"Y-m-d H:i" }}
+                                            </time>
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                Unavailable
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+    {% else %}
+
+        <div class="card shadow-sm">
+
+            <div class="card-body text-center py-5">
+
+                <div class="mb-3">
+                    <span class="fs-1" aria-hidden="true">🔎</span>
+                </div>
+
+                <h2 class="h4">
+                    No tokens discovered yet
+                </h2>
+
+                <p class="text-muted mb-0 mx-auto"
+                   style="max-width: 600px;">
+
+                    The scanner has not stored any real blockchain tokens
+                    yet. Once the discovery pipeline runs, validated token
+                    contracts and available analysis results will appear here.
+
+                </p>
+
+            </div>
+
+        </div>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}

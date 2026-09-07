@@ -1,8 +1,18 @@
 from django.shortcuts import render
-from django.http import HttpResponse
+
+from .models import Token
 
 
 def index(request):
-    return HttpResponse(
-        "HappyWallet Token Scanner is ready."
+    tokens = (
+        Token.objects
+        .order_by("-first_seen_at")[:100]
+    )
+
+    return render(
+        request,
+        "token_scanner/index.html",
+        {
+            "tokens": tokens,
+        },
     )

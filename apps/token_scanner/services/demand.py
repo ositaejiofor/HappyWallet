@@ -517,26 +517,56 @@ class EVMDemandAnalyzer:
     # Transfer logs
     # ------------------------------------------------------------------
 
-    def _get_transfer_logs(
-        self,
-        *,
-        token_address: str,
-        from_block: int,
-        to_block: int,
-    ) -> list[Any]:
-        """
-        Retrieve ERC-20 Transfer events in bounded chunks.
-        """
 
-        logs: list[Any] = []
+def _get_transfer_logs(
+    self,
+    *,
+    token_address: str,
+    from_block: int,
+    to_block: int,
+) -> list[Any]:
+    """
+    Retrieve ERC-20 Transfer events in bounded, retryable chunks.
 
-        current = from_block
+    The Ethereum JSON-RPC ``eth_getLogs`` method is subject to
+    provider-specific block-range and response-size limits.
 
-        while current <= to_block:
-            chunk_end = min(
-                current + self.log_chunk_size - 1,
-                to_block,
-            )
+    This implementation therefore:
+
+        1. Scans the requested range incrementally.
+        2. Retries transient RPC failures.
+        3. Reduces the chunk size when a provider rejects a range.
+        4. Never skips a block range silently.
+        5. Preserves the original exception as the cause.
+        6. Never exposes the configured RPC URL in errors.
+
+    No transaction is submitted and no wallet credentials are used.
+    """
+
+    logs: list[Any] = []
+
+    current = from_block
+
+    # Start with the configured chunk size.  If the provider rejects
+    # a range, the value is reduced for subsequent requests.
+    chunk_size = self.log_chunk_size
+
+    # Prevent the adaptive logic from reducing the request to zero.
+    min_chunk_size = 1
+
+    # A small retry count is sufficient for transient provider errors.
+    max_attempts = 3
+
+    while current <= to_block:
+        chunk_end = min(
+            current + chunk_size - 1,
+            to_block,
+        )
+
+        attempts = 0
+
+        while True:
+            attempts += 1
 
             try:
                 chunk = self.web3.eth.get_logs(
@@ -550,27 +580,78 @@ class EVMDemandAnalyzer:
                     }
                 )
 
+                logs.extend(chunk)
+
+                # The request succeeded.  Move forward without
+                # skipping any blocks.
+                current = chunk_end + 1
+
+                # If we previously reduced the chunk size and this
+                # request succeeded, cautiously grow it again.
+                if chunk_size < self.log_chunk_size:
+                    chunk_size = min(
+                        self.log_chunk_size,
+                        chunk_size * 2,
+                    )
+
+                break
+
             except Web3Exception as exc:
+                if attempts < max_attempts:
+                    continue
+
+                # If the provider rejected the range, reduce the
+                # chunk size and retry the same block range.
+                if chunk_size > min_chunk_size:
+                    chunk_size = max(
+                        min_chunk_size,
+                        chunk_size // 2,
+                    )
+
+                    chunk_end = min(
+                        current + chunk_size - 1,
+                        to_block,
+                    )
+
+                    continue
+
                 raise DemandRPCError(
                     (
                         "Unable to retrieve Transfer logs for "
-                        f"blocks {current}-{chunk_end}."
+                        f"blocks {current}-{chunk_end} "
+                        f"after {max_attempts} attempts "
+                        f"({type(exc).__name__})."
                     )
                 ) from exc
 
             except Exception as exc:
+                if attempts < max_attempts:
+                    continue
+
+                if chunk_size > min_chunk_size:
+                    chunk_size = max(
+                        min_chunk_size,
+                        chunk_size // 2,
+                    )
+
+                    chunk_end = min(
+                        current + chunk_size - 1,
+                        to_block,
+                    )
+
+                    continue
+
                 raise DemandRPCError(
                     (
                         "Unexpected error retrieving Transfer logs "
-                        f"for blocks {current}-{chunk_end}."
+                        f"for blocks {current}-{chunk_end} "
+                        f"after {max_attempts} attempts "
+                        f"({type(exc).__name__})."
                     )
                 ) from exc
 
-            logs.extend(chunk)
+    return logs
 
-            current = chunk_end + 1
-
-        return logs
 
     # ------------------------------------------------------------------
     # Event classification

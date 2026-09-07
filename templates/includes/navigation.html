@@ -148,6 +148,30 @@
                 </a>
 
                 <!-- =========================================================
+                TOKEN SCANNER
+           ========================================================== -->
+           
+           <a
+               href="{% url 'token_scanner:index' %}"
+               class="main-navigation__link{% if request.resolver_match.app_name == 'token_scanner' %} main-navigation__link--active{% endif %}"
+               {% if request.resolver_match.app_name == 'token_scanner' %}
+                   aria-current="page"
+               {% endif %}
+           >
+               <span
+                   class="main-navigation__icon"
+                   aria-hidden="true"
+               >
+                   🔎
+               </span>
+           
+               <span class="main-navigation__label">
+                   Token Scanner
+               </span>
+           </a>
+
+
+                <!-- =========================================================
                 TRADING
            ========================================================== -->
            
