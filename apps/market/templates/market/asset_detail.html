@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static humanize tz %}
 
 {% block title %}{{ asset.name }} | Market | HappyWallet{% endblock %}
 {% block meta_description %}Live {{ asset.name }} market price and historical chart on HappyWallet.{% endblock %}
@@ -67,11 +67,11 @@
             <div id="price-heading" class="text-muted">Current Price</div>
             <div class="price-value" data-live-price>
                 {% if latest_price.price_usd >= 1 %}
-                    ${{ latest_price.price_usd|floatformat:2 }}
+                    ${{ latest_price.price_usd|floatformat:2|intcomma }}
                 {% elif latest_price.price_usd >= 0.01 %}
-                    ${{ latest_price.price_usd|floatformat:4 }}
+                    ${{ latest_price.price_usd|floatformat:4|intcomma }}
                 {% else %}
-                    ${{ latest_price.price_usd|floatformat:8 }}
+                    ${{ latest_price.price_usd|floatformat:8|intcomma }}
                 {% endif %}
             </div>
             {% if latest_price.price_change_24h is None %}
@@ -83,16 +83,16 @@
             {% else %}
                 <div class="change-flat fw-semibold">0.00% (24h)</div>
             {% endif %}
-            <div class="small text-muted mt-2" data-live-updated>Stored {{ latest_price.captured_at|date:"M d, Y H:i" }}</div>
+            <div class="small text-muted mt-2" data-live-updated>Stored {{ latest_price.captured_at|localtime|date:"M d, Y H:i T" }}</div>
         </section>
 
         <section class="mt-4" aria-labelledby="stats-heading">
             <h2 id="stats-heading" class="h5 mb-3">Market Statistics</h2>
             <div class="row g-3">
-                <div class="col-12 col-md-6 col-xl-3"><div class="market-card stat-card"><div class="stat-label">Market Cap</div><div class="stat-value">{% if latest_price.market_cap_usd %}${{ latest_price.market_cap_usd|floatformat:0 }}{% else %}—{% endif %}</div></div></div>
-                <div class="col-12 col-md-6 col-xl-3"><div class="market-card stat-card"><div class="stat-label">24h Volume</div><div class="stat-value">{% if latest_price.volume_24h_usd %}${{ latest_price.volume_24h_usd|floatformat:0 }}{% else %}—{% endif %}</div></div></div>
-                <div class="col-12 col-md-6 col-xl-3"><div class="market-card stat-card"><div class="stat-label">Circulating Supply</div><div class="stat-value">{% if latest_price.circulating_supply %}{{ latest_price.circulating_supply|floatformat:0 }}{% else %}—{% endif %}</div></div></div>
-                <div class="col-12 col-md-6 col-xl-3"><div class="market-card stat-card"><div class="stat-label">Fully Diluted Value</div><div class="stat-value">{% if latest_price.fully_diluted_valuation_usd %}${{ latest_price.fully_diluted_valuation_usd|floatformat:0 }}{% else %}—{% endif %}</div></div></div>
+                <div class="col-12 col-md-6 col-xl-3"><div class="market-card stat-card"><div class="stat-label">Market Cap</div><div class="stat-value">{% if latest_price.market_cap_usd %}${{ latest_price.market_cap_usd|floatformat:0|intcomma }}{% else %}—{% endif %}</div></div></div>
+                <div class="col-12 col-md-6 col-xl-3"><div class="market-card stat-card"><div class="stat-label">24h Volume</div><div class="stat-value">{% if latest_price.volume_24h_usd %}${{ latest_price.volume_24h_usd|floatformat:0|intcomma }}{% else %}—{% endif %}</div></div></div>
+                <div class="col-12 col-md-6 col-xl-3"><div class="market-card stat-card"><div class="stat-label">Circulating Supply</div><div class="stat-value">{% if latest_price.circulating_supply %}{{ latest_price.circulating_supply|floatformat:0|intcomma }} {{ asset.symbol|upper }}{% else %}—{% endif %}</div></div></div>
+                <div class="col-12 col-md-6 col-xl-3"><div class="market-card stat-card"><div class="stat-label">Fully Diluted Value</div><div class="stat-value">{% if latest_price.fully_diluted_valuation_usd %}${{ latest_price.fully_diluted_valuation_usd|floatformat:0|intcomma }}{% else %}—{% endif %}</div></div></div>
             </div>
         </section>
 
@@ -126,7 +126,7 @@
             {% if asset.decimals is not None %}
                 <div class="info-row"><span class="text-muted">Decimals</span><strong class="info-value">{{ asset.decimals }}</strong></div>
             {% endif %}
-            <div class="info-row"><span class="text-muted">Stored Snapshot</span><strong class="info-value"><time datetime="{{ latest_price.captured_at|date:'c' }}">{{ latest_price.captured_at|date:"M d, Y H:i" }}</time></strong></div>
+            <div class="info-row"><span class="text-muted">Stored Snapshot</span><strong class="info-value"><time datetime="{{ latest_price.captured_at|date:'c' }}">{{ latest_price.captured_at|localtime|date:"M d, Y H:i T" }}</time></strong></div>
         </section>
     {% else %}
         <div class="market-card p-5 text-center" role="status">
