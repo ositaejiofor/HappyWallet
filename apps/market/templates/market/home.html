@@ -1,68 +1,418 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% block title %}Market | HappyWallet{% endblock %}
+{% block title %}Cryptocurrency Market | HappyWallet{% endblock %}
 
 {% block meta_description %}
-Live cryptocurrency market prices and assets tracked by HappyWallet.
+Live cryptocurrency prices, volume, market capitalization and
+24-hour performance tracked by HappyWallet.
 {% endblock %}
+
+
+{% block extra_css %}
+
+<style>
+    .market-page {
+        min-height: 100vh;
+        padding: 2rem 0 4rem;
+    }
+
+    .market-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .market-title {
+        margin: 0 0 0.35rem;
+        font-size: clamp(1.8rem, 4vw, 2.5rem);
+        font-weight: 750;
+        letter-spacing: -0.03em;
+    }
+
+    .market-subtitle {
+        margin: 0;
+        color: #6b7280;
+    }
+
+    .market-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(25, 135, 84, 0.1);
+        color: #198754;
+        font-size: 0.82rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .market-badge::before {
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 50%;
+        background: currentColor;
+        content: "";
+    }
+
+    .market-controls {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(190px, 250px);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 1rem;
+        background: #ffffff;
+        box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.04);
+    }
+
+    .market-controls input,
+    .market-controls select {
+        min-height: 44px;
+    }
+
+    .market-summary {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        color: #6b7280;
+        font-size: 0.88rem;
+    }
+
+    .market-asset {
+        height: 100%;
+    }
+
+    .market-card {
+        height: 100%;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        border-radius: 1rem;
+        background: #ffffff;
+        box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.04);
+        transition:
+            transform 0.2s ease,
+            border-color 0.2s ease,
+            box-shadow 0.2s ease;
+    }
+
+    .market-card:hover {
+        transform: translateY(-3px);
+        border-color: rgba(37, 99, 235, 0.35);
+        box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.08);
+    }
+
+    .market-card__body {
+        padding: 1.25rem;
+    }
+
+    .market-card__header {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .market-image,
+    .market-image-fallback {
+        width: 48px;
+        height: 48px;
+        flex: 0 0 48px;
+        border-radius: 50%;
+    }
+
+    .market-image {
+        object-fit: contain;
+    }
+
+    .market-image-fallback {
+        display: grid;
+        place-items: center;
+        background: #eef2ff;
+        color: #3730a3;
+        font-weight: 800;
+    }
+
+    .market-identity {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .market-name {
+        margin: 0;
+        overflow: hidden;
+        font-size: 1.05rem;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .market-symbol {
+        color: #6b7280;
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+
+    .market-rank {
+        color: #9ca3af;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    .market-price-label {
+        color: #6b7280;
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+
+    .market-price {
+        margin: 0.15rem 0 0.4rem;
+        font-size: 1.75rem;
+        font-weight: 750;
+        letter-spacing: -0.025em;
+        overflow-wrap: anywhere;
+    }
+
+    .market-change {
+        display: inline-flex;
+        padding: 0.3rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .market-change--positive {
+        background: rgba(25, 135, 84, 0.1);
+        color: #198754;
+    }
+
+    .market-change--negative {
+        background: rgba(220, 53, 69, 0.1);
+        color: #dc3545;
+    }
+
+    .market-change--neutral {
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+
+    .market-stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        margin-top: 1.25rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid #f1f3f5;
+    }
+
+    .market-stat-label {
+        margin-bottom: 0.2rem;
+        color: #6b7280;
+        font-size: 0.72rem;
+    }
+
+    .market-stat-value {
+        overflow: hidden;
+        font-size: 0.9rem;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .market-updated {
+        margin-top: 1rem;
+        color: #9ca3af;
+        font-size: 0.72rem;
+    }
+
+    .market-card__footer {
+        padding: 0 1.25rem 1.25rem;
+    }
+
+    .market-search-empty {
+        display: none;
+        padding: 3rem 1.5rem;
+        border: 1px dashed #d1d5db;
+        border-radius: 1rem;
+        background: #f9fafb;
+        text-align: center;
+    }
+
+    .market-search-empty.is-visible {
+        display: block;
+    }
+
+    @media (max-width: 767px) {
+        .market-page {
+            padding-top: 1rem;
+        }
+
+        .market-header {
+            flex-direction: column;
+        }
+
+        .market-controls {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+{% endblock %}
+
 
 {% block content %}
 
-<section class="container py-4">
+<section
+    class="container market-page"
+    data-market-live
+    data-live-endpoint="{% url 'market:live_data' %}"
+>
 
-    <!-- =========================================================
-         MARKET HEADER
-    ========================================================== -->
-
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <header class="market-header">
 
         <div>
-            <h1 class="mb-1">
+            <h1 class="market-title">
                 Cryptocurrency Market
             </h1>
 
-            <p class="text-muted mb-0">
-                Track the latest market prices and asset information.
+            <p class="market-subtitle">
+                Explore current prices, volume, market capitalization
+                and 24-hour performance.
             </p>
         </div>
 
-    </div>
+        <span class="market-badge">
+            Market data
+        </span>
 
+    </header>
 
-    <!-- =========================================================
-         MARKET ASSETS
-    ========================================================== -->
 
     {% if assets %}
 
-        <div class="row g-4">
+        <div class="market-controls">
+
+            <div>
+                <label
+                    for="market-search"
+                    class="form-label fw-semibold"
+                >
+                    Search assets
+                </label>
+
+                <input
+                    type="search"
+                    id="market-search"
+                    class="form-control"
+                    placeholder="Search by name or symbol"
+                    autocomplete="off"
+                >
+            </div>
+
+
+            <div>
+                <label
+                    for="market-sort"
+                    class="form-label fw-semibold"
+                >
+                    Sort market
+                </label>
+
+                <select
+                    id="market-sort"
+                    class="form-select"
+                >
+                    <option value="market-cap">
+                        Market cap
+                    </option>
+
+                    <option value="price-high">
+                        Price: high to low
+                    </option>
+
+                    <option value="price-low">
+                        Price: low to high
+                    </option>
+
+                    <option value="change-high">
+                        Best 24h performance
+                    </option>
+
+                    <option value="change-low">
+                        Worst 24h performance
+                    </option>
+
+                    <option value="name">
+                        Name
+                    </option>
+                </select>
+            </div>
+
+        </div>
+
+
+        <div class="market-summary">
+
+            <span>
+                Showing
+                <strong id="market-visible-count">
+                    {{ assets|length }}
+                </strong>
+                of
+                <strong>{{ assets|length }}</strong>
+                assets
+            </span>
+
+            <span>
+                USD market
+            </span>
+
+        </div>
+
+
+        <div
+            id="market-assets"
+            class="row g-4"
+        >
 
             {% for item in assets %}
 
-                <div class="col-12 col-md-6 col-xl-4">
+                <div
+                    class="col-12 col-md-6 col-xl-4 market-asset"
+                    data-coin-id="{{ item.asset.coingecko_id }}"
+                    data-name="{{ item.asset.name|lower }}"
+                    data-symbol="{{ item.asset.symbol|lower }}"
+                    data-price="{{ item.price.price_usd }}"
+                    data-market-cap="{{ item.price.market_cap_usd|default:0 }}"
+                    data-change="{{ item.price.price_change_24h|default:0 }}"
+                >
 
-                    <article class="card h-100 shadow-sm">
+                    <article class="market-card">
 
-                        <div class="card-body">
+                        <div class="market-card__body">
 
-                            <div class="d-flex align-items-center mb-3">
+                            <div class="market-card__header">
 
                                 {% if item.asset.image_url %}
 
                                     <img
                                         src="{{ item.asset.image_url }}"
-                                        alt="{{ item.asset.name }}"
+                                        alt=""
                                         width="48"
                                         height="48"
-                                        class="rounded-circle me-3"
+                                        class="market-image"
                                         loading="lazy"
                                     >
 
                                 {% else %}
 
                                     <div
-                                        class="rounded-circle bg-light d-flex align-items-center justify-content-center me-3"
-                                        style="width: 48px; height: 48px;"
+                                        class="market-image-fallback"
                                         aria-hidden="true"
                                     >
                                         {{ item.asset.symbol|slice:":1"|upper }}
@@ -70,127 +420,166 @@ Live cryptocurrency market prices and assets tracked by HappyWallet.
 
                                 {% endif %}
 
-                                <div>
 
-                                    <h2 class="h5 mb-0">
+                                <div class="market-identity">
+
+                                    <h2 class="market-name">
                                         {{ item.asset.name }}
                                     </h2>
 
-                                    <small class="text-muted">
+                                    <div class="market-symbol">
                                         {{ item.asset.symbol|upper }}
-                                    </small>
+                                    </div>
 
                                 </div>
+
+
+                                <span class="market-rank">
+                                    #{{ forloop.counter }}
+                                </span>
 
                             </div>
 
 
-                            <div class="mb-3">
+                            <div class="market-price-label">
+                                Current Price
+                            </div>
 
-                                <div class="text-muted small">
-                                    Current Price
-                                </div>
 
-                                <div class="fs-3 fw-bold">
+                            <div class="market-price">
+
+                                {% if item.price.price_usd >= 1 %}
+
                                     ${{ item.price.price_usd|floatformat:2 }}
-                                </div>
+
+                                {% elif item.price.price_usd >= 0.01 %}
+
+                                    ${{ item.price.price_usd|floatformat:4 }}
+
+                                {% else %}
+
+                                    ${{ item.price.price_usd|floatformat:8 }}
+
+                                {% endif %}
 
                             </div>
 
 
-                            <div class="row g-3">
+                            {% if item.price.price_change_24h is None %}
 
-                                <div class="col-6">
+                                <span class="market-change market-change--neutral">
+                                    24h unavailable
+                                </span>
 
-                                    <div class="text-muted small">
+                            {% elif item.price.price_change_24h > 0 %}
+
+                                <span class="market-change market-change--positive">
+                                    ▲ {{ item.price.price_change_24h|floatformat:2 }}%
+                                </span>
+
+                            {% elif item.price.price_change_24h < 0 %}
+
+                                <span class="market-change market-change--negative">
+                                    ▼ {{ item.price.price_change_24h|floatformat:2 }}%
+                                </span>
+
+                            {% else %}
+
+                                <span class="market-change market-change--neutral">
+                                    0.00%
+                                </span>
+
+                            {% endif %}
+
+
+                            <div class="market-stats">
+
+                                <div>
+                                    <div class="market-stat-label">
                                         Market Cap
                                     </div>
 
-                                    {% if item.price.market_cap_usd %}
-                                        <div class="fw-semibold">
+                                    <div
+                                        class="market-stat-value"
+                                        data-format-money="{{ item.price.market_cap_usd|default:'' }}"
+                                    >
+                                        {% if item.price.market_cap_usd %}
                                             ${{ item.price.market_cap_usd|floatformat:0 }}
-                                        </div>
-                                    {% else %}
-                                        <div class="text-muted">
+                                        {% else %}
                                             —
-                                        </div>
-                                    {% endif %}
-
+                                        {% endif %}
+                                    </div>
                                 </div>
 
 
-                                <div class="col-6">
-
-                                    <div class="text-muted small">
+                                <div>
+                                    <div class="market-stat-label">
                                         24h Volume
                                     </div>
 
-                                    {% if item.price.volume_24h_usd %}
-                                        <div class="fw-semibold">
+                                    <div
+                                        class="market-stat-value"
+                                        data-format-money="{{ item.price.volume_24h_usd|default:'' }}"
+                                    >
+                                        {% if item.price.volume_24h_usd %}
                                             ${{ item.price.volume_24h_usd|floatformat:0 }}
-                                        </div>
-                                    {% else %}
-                                        <div class="text-muted">
+                                        {% else %}
                                             —
-                                        </div>
-                                    {% endif %}
-
-                                </div>
-
-
-                                <div class="col-6">
-
-                                    <div class="text-muted small">
-                                        24h Change
+                                        {% endif %}
                                     </div>
-
-                                    {% if item.price.price_change_24h is not None %}
-
-                                        <div class="fw-semibold">
-                                            {{ item.price.price_change_24h|floatformat:2 }}%
-                                        </div>
-
-                                    {% else %}
-
-                                        <div class="text-muted">
-                                            —
-                                        </div>
-
-                                    {% endif %}
-
                                 </div>
 
 
-                                <div class="col-6">
-
-                                    <div class="text-muted small">
+                                <div>
+                                    <div class="market-stat-label">
                                         Network
                                     </div>
 
-                                    {% if item.asset.chain %}
-                                        <div class="fw-semibold">
-                                            {{ item.asset.chain }}
-                                        </div>
-                                    {% else %}
-                                        <div class="text-muted">
-                                            —
-                                        </div>
-                                    {% endif %}
+                                    <div class="market-stat-value">
 
+                                        {% if item.asset.chain %}
+                                            {{ item.asset.chain }}
+                                        {% else %}
+                                            Not specified
+                                        {% endif %}
+
+                                    </div>
                                 </div>
+
+
+                                <div>
+                                    <div class="market-stat-label">
+                                        Currency
+                                    </div>
+
+                                    <div class="market-stat-value">
+                                        USD
+                                    </div>
+                                </div>
+
+                            </div>
+
+
+                            <div class="market-updated">
+
+                                <time datetime="{{ item.price.captured_at|date:'c' }}">
+                                    Updated
+                                    {{ item.price.captured_at|timesince }}
+                                    ago
+                                </time>
 
                             </div>
 
                         </div>
 
 
-                        <div class="card-footer bg-transparent border-0 pt-0 pb-3">
+                        <div class="market-card__footer">
 
                             <a
                                 href="{% url 'market:asset_detail' item.asset.coingecko_id %}"
                                 class="btn btn-outline-primary w-100"
                             >
-                                View Asset
+                                View Candlestick Chart
                             </a>
 
                         </div>
@@ -203,19 +592,36 @@ Live cryptocurrency market prices and assets tracked by HappyWallet.
 
         </div>
 
+
+        <div
+            id="market-search-empty"
+            class="market-search-empty"
+            role="status"
+        >
+            <h2 class="h5">
+                No matching assets
+            </h2>
+
+            <p class="text-muted mb-0">
+                Try another asset name or symbol.
+            </p>
+        </div>
+
+
     {% else %}
 
-        <div class="alert alert-info" role="status">
-
+        <div
+            class="alert alert-info"
+            role="status"
+        >
             <h2 class="h5">
                 No market data available
             </h2>
 
             <p class="mb-0">
-                HappyWallet does not have any market prices yet.
-                Synchronize market data to populate this page.
+                Run the market synchronization command to populate
+                cryptocurrency information.
             </p>
-
         </div>
 
     {% endif %}
@@ -223,3 +629,203 @@ Live cryptocurrency market prices and assets tracked by HappyWallet.
 </section>
 
 {% endblock %}
+
+
+{% block extra_js %}
+
+<script>
+(function () {
+    "use strict";
+
+    const container =
+        document.getElementById(
+            "market-assets"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    const search =
+        document.getElementById(
+            "market-search"
+        );
+
+    const sort =
+        document.getElementById(
+            "market-sort"
+        );
+
+    const counter =
+        document.getElementById(
+            "market-visible-count"
+        );
+
+    const empty =
+        document.getElementById(
+            "market-search-empty"
+        );
+
+    const cards = Array.from(
+        container.querySelectorAll(
+            ".market-asset"
+        )
+    );
+
+
+    function compactUSD(value) {
+        const number = Number(value);
+
+        if (!Number.isFinite(number)) {
+            return "—";
+        }
+
+        return new Intl.NumberFormat(
+            "en-US",
+            {
+                style: "currency",
+                currency: "USD",
+                notation: "compact",
+                maximumFractionDigits: 2,
+            }
+        ).format(number);
+    }
+
+
+    document
+        .querySelectorAll(
+            "[data-format-money]"
+        )
+        .forEach((element) => {
+            const value =
+                element.dataset.formatMoney;
+
+            if (value) {
+                element.textContent =
+                    compactUSD(value);
+            }
+        });
+
+
+    function compareCards(
+        first,
+        second
+    ) {
+        const option = sort.value;
+
+        const firstPrice = Number(
+            first.dataset.price || 0
+        );
+
+        const secondPrice = Number(
+            second.dataset.price || 0
+        );
+
+        const firstCap = Number(
+            first.dataset.marketCap || 0
+        );
+
+        const secondCap = Number(
+            second.dataset.marketCap || 0
+        );
+
+        const firstChange = Number(
+            first.dataset.change || 0
+        );
+
+        const secondChange = Number(
+            second.dataset.change || 0
+        );
+
+
+        if (option === "price-high") {
+            return secondPrice - firstPrice;
+        }
+
+        if (option === "price-low") {
+            return firstPrice - secondPrice;
+        }
+
+        if (option === "change-high") {
+            return secondChange - firstChange;
+        }
+
+        if (option === "change-low") {
+            return firstChange - secondChange;
+        }
+
+        if (option === "name") {
+            return first.dataset.name.localeCompare(
+                second.dataset.name
+            );
+        }
+
+        return secondCap - firstCap;
+    }
+
+
+    function updateMarket() {
+        const query = search.value
+            .trim()
+            .toLowerCase();
+
+        const sortedCards = [
+            ...cards,
+        ].sort(compareCards);
+
+        let visibleCount = 0;
+
+        sortedCards.forEach(
+            (card) => {
+                const searchableText =
+                    `${card.dataset.name} ` +
+                    `${card.dataset.symbol}`;
+
+                const visible =
+                    !query ||
+                    searchableText.includes(
+                        query
+                    );
+
+                card.hidden = !visible;
+
+                if (visible) {
+                    visibleCount += 1;
+                }
+
+                container.appendChild(card);
+            }
+        );
+
+        counter.textContent =
+            String(visibleCount);
+
+        empty.classList.toggle(
+            "is-visible",
+            visibleCount === 0
+        );
+    }
+
+
+    search.addEventListener(
+        "input",
+        updateMarket
+    );
+
+    sort.addEventListener(
+        "change",
+        updateMarket
+    );
+
+    updateMarket();
+}());
+</script>
+
+
+<script
+    src="{% static 'js/market-live.js' %}"
+    defer
+></script>
+
+{% endblock %}
+
