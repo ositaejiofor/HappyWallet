@@ -290,6 +290,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "pwa",
 
     # ------------------------------------------------------------------------
     # HappyWallet
@@ -438,6 +439,116 @@ TIME_ZONE = env_str(
 USE_I18N = True
 
 USE_TZ = True
+
+
+# ============================================================================
+# PROGRESSIVE WEB APP (PWA)
+# ============================================================================
+
+# HappyWallet can be installed as a Progressive Web App on supported
+# desktop and mobile browsers.
+#
+# Security notes:
+# - The PWA service worker is intentionally read-only.
+# - Authenticated pages, wallet secrets, private keys, seed phrases,
+#   API responses, and transaction data must NOT be cached.
+# - Production installation requires HTTPS. Localhost/127.0.0.1 is
+#   acceptable for development.
+
+PWA_APP_NAME = "HappyWallet"
+
+PWA_APP_SHORT_NAME = "HappyWallet"
+
+PWA_APP_DESCRIPTION = (
+    "HappyWallet secure digital wallet platform."
+)
+
+PWA_APP_ID = "/"
+
+PWA_APP_START_URL = "/"
+
+PWA_APP_SCOPE = "/"
+
+PWA_APP_DISPLAY = "standalone"
+
+PWA_APP_ORIENTATION = "any"
+
+PWA_APP_THEME_COLOR = "#111827"
+
+PWA_APP_BACKGROUND_COLOR = "#ffffff"
+
+PWA_APP_STATUS_BAR_COLOR = "default"
+
+PWA_APP_LANG = "en"
+
+PWA_APP_DIR = "ltr"
+
+
+# ----------------------------------------------------------------------------
+# Application icons
+# ----------------------------------------------------------------------------
+#
+# IMPORTANT:
+# The actual image dimensions must match the declared sizes:
+#
+#   icon-192.png -> exactly 192 x 192 pixels
+#   icon-512.png -> exactly 512 x 512 pixels
+#
+# Do not merely rename larger images to these filenames.
+
+PWA_APP_ICONS = [
+    {
+        "src": "/static/images/icons/icon-192.png",
+        "sizes": "192x192",
+        "type": "image/png",
+    },
+    {
+        "src": "/static/images/icons/icon-512.png",
+        "sizes": "512x512",
+        "type": "image/png",
+    },
+]
+
+
+# ----------------------------------------------------------------------------
+# Apple / iOS icon
+# ----------------------------------------------------------------------------
+
+PWA_APP_ICONS_APPLE = [
+    {
+        "src": "/static/images/icons/icon-192.png",
+        "sizes": "192x192",
+        "type": "image/png",
+    },
+]
+
+
+# ----------------------------------------------------------------------------
+# Rich PWA installation screenshots
+# ----------------------------------------------------------------------------
+#
+# django-pwa exposes PWA_APP_SCREENSHOTS in the generated manifest.
+#
+# The desktop screenshot uses form_factor="wide".
+#
+# A mobile screenshot should also be supplied without form_factor="wide"
+# (or with form_factor="narrow") so browsers can provide richer mobile
+# installation UI as well.
+
+PWA_APP_SCREENSHOTS = []
+
+
+# ----------------------------------------------------------------------------
+# Service worker
+# ----------------------------------------------------------------------------
+#
+# HappyWallet uses its own security-conscious service worker rather than
+# django-pwa's default caching implementation.
+
+PWA_SERVICE_WORKER_PATH = (
+    BASE_DIR / "static" / "serviceworker.js"
+)
+
 
 
 # ============================================================================

@@ -1,293 +1,1344 @@
+{% load static %}
+
+<style>
+/* =========================================================
+   UNIVERSAL THREE-DOT NAVIGATION + PWA INSTALL ITEM
+   Desktop, tablet and mobile use the same dropdown menu.
+========================================================= */
+
+.site-header__inner {
+    position: relative;
+}
+
+.navigation-toggle {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+}
+
+.navigation-toggle__dots {
+    display: block;
+    font-size: 2rem;
+    line-height: 1;
+    transform: translateY(-1px);
+}
+
+.header-navigation {
+    display: none !important;
+    position: absolute !important;
+    top: calc(100% + 0.65rem);
+    right: 0;
+    z-index: 1000;
+    width: min(360px, calc(100vw - 2rem));
+    max-height: calc(100vh - 6rem);
+    overflow-y: auto;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 0.9rem;
+    background: #ffffff;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
+}
+
+.header-navigation.header-navigation--open {
+    display: flex !important;
+}
+
+.main-navigation {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100%;
+    gap: 0.25rem;
+}
+
+.main-navigation__link {
+    width: 100%;
+}
+
+.pwa-install-button {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.pwa-install-button[aria-disabled="true"] {
+    cursor: default;
+    opacity: 0.75;
+}
+
+.user-menu {
+    width: 100%;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(15, 23, 42, 0.10);
+}
+
+@media (max-width: 480px) {
+    .header-navigation {
+        right: 0;
+        width: min(340px, calc(100vw - 1rem));
+    }
+}
+</style>
+
+
+
 <header class="site-header">
+
+
 
     <div class="container site-header__inner">
 
-        <!-- =================================================================
+
+
+        <!-- =============================================================
+
              BRAND
-        ================================================================== -->
+
+        ============================================================== -->
+
+
 
         <a
+
             href="{% url 'dashboard:index' %}"
+
             class="brand"
+
             aria-label="HappyWallet Dashboard"
+
         >
+
+        <img
+        src="{% static 'images/logo/logo.png' %}"
+        alt=""
+        class="site-footer__logo"
+        width="44"
+        height="44"
+        loading="lazy"
+    >
+
+
+
             <span class="brand__name">
+
                 HappyWallet
+
             </span>
+
         </a>
+
+
+
 
 
         {% if user.is_authenticated %}
 
-            <!-- =============================================================
-                 MAIN NAVIGATION
-            =============================================================== -->
 
-            <nav
-                class="main-navigation"
-                aria-label="Main navigation"
+
+                        <!-- =========================================================
+                 UNIVERSAL THREE-DOT MENU TOGGLE
+                 Desktop / tablet / mobile
+            ========================================================== -->
+
+            <button
+                type="button"
+                class="navigation-toggle"
+                id="navigationToggle"
+                aria-expanded="false"
+                aria-controls="headerNavigation"
+                aria-haspopup="true"
+                aria-label="Open navigation menu"
+            >
+                <span
+                    class="navigation-toggle__dots"
+                    aria-hidden="true"
+                >⋮</span>
+            </button>
+
+
+<!-- =========================================================
+
+                 DROPDOWN NAVIGATION
+
+            ========================================================== -->
+
+
+
+            <div
+
+                class="header-navigation"
+
+                id="headerNavigation"
+
             >
 
-                <!-- =========================================================
-                     DASHBOARD
-                ========================================================== -->
 
-                <a
-                    href="{% url 'dashboard:index' %}"
-                    class="main-navigation__link{% if request.resolver_match.app_name == 'dashboard' %} main-navigation__link--active{% endif %}"
-                    {% if request.resolver_match.app_name == 'dashboard' %}
-                        aria-current="page"
-                    {% endif %}
+
+                <!-- =====================================================
+
+                     MAIN NAVIGATION
+
+                ====================================================== -->
+
+
+
+                <nav
+
+                    class="main-navigation"
+
+                    aria-label="Main navigation"
+
                 >
-                    <span
-                        class="main-navigation__icon"
-                        aria-hidden="true"
+
+
+
+                    <!-- DASHBOARD -->
+
+
+
+                    <a
+
+                        href="{% url 'dashboard:index' %}"
+
+                        class="
+
+                            main-navigation__link
+
+                            {% if request.resolver_match.app_name == 'dashboard' %}
+
+                                main-navigation__link--active
+
+                            {% endif %}
+
+                        "
+
+                        {% if request.resolver_match.app_name == 'dashboard' %}
+
+                            aria-current="page"
+
+                        {% endif %}
+
                     >
-                        🏠
-                    </span>
 
-                    <span class="main-navigation__label">
-                        Dashboard
-                    </span>
-                </a>
+                        <span
+
+                            class="main-navigation__icon"
+
+                            aria-hidden="true"
+
+                        >
+
+                            🏠
+
+                        </span>
 
 
-                <!-- =========================================================
-                     WALLET
-                ========================================================== -->
 
-                <a
-                    href="{% url 'wallet:home' %}"
-                    class="main-navigation__link{% if request.resolver_match.app_name == 'wallet' and request.resolver_match.url_name == 'home' %} main-navigation__link--active{% endif %}"
-                    {% if request.resolver_match.app_name == 'wallet' and request.resolver_match.url_name == 'home' %}
-                        aria-current="page"
-                    {% endif %}
-                >
-                    <span
-                        class="main-navigation__icon"
-                        aria-hidden="true"
+                        <span class="main-navigation__label">
+
+                            Dashboard
+
+                        </span>
+
+                    </a>
+
+
+
+
+
+                    <!-- WALLET -->
+
+
+
+                    <a
+
+                        href="{% url 'wallet:home' %}"
+
+                        class="
+
+                            main-navigation__link
+
+                            {% if request.resolver_match.app_name == 'wallet' and request.resolver_match.url_name == 'home' %}
+
+                                main-navigation__link--active
+
+                            {% endif %}
+
+                        "
+
+                        {% if request.resolver_match.app_name == 'wallet' and request.resolver_match.url_name == 'home' %}
+
+                            aria-current="page"
+
+                        {% endif %}
+
                     >
-                        👛
-                    </span>
 
-                    <span class="main-navigation__label">
-                        Wallet
-                    </span>
-                </a>
+                        <span
+
+                            class="main-navigation__icon"
+
+                            aria-hidden="true"
+
+                        >
+
+                            👛
+
+                        </span>
 
 
-                <!-- =========================================================
-                     CREATE WALLET
-                ========================================================== -->
 
-                <a
-                    href="{% url 'wallet:create' %}"
-                    class="main-navigation__link{% if request.resolver_match.app_name == 'wallet' and request.resolver_match.url_name == 'create' %} main-navigation__link--active{% endif %}"
-                    {% if request.resolver_match.app_name == 'wallet' and request.resolver_match.url_name == 'create' %}
-                        aria-current="page"
-                    {% endif %}
-                >
-                    <span
-                        class="main-navigation__icon"
-                        aria-hidden="true"
+                        <span class="main-navigation__label">
+
+                            Wallet
+
+                        </span>
+
+                    </a>
+
+
+
+
+
+                    <!-- CREATE WALLET -->
+
+
+
+                    <a
+
+                        href="{% url 'wallet:create' %}"
+
+                        class="
+
+                            main-navigation__link
+
+                            {% if request.resolver_match.app_name == 'wallet' and request.resolver_match.url_name == 'create' %}
+
+                                main-navigation__link--active
+
+                            {% endif %}
+
+                        "
+
+                        {% if request.resolver_match.app_name == 'wallet' and request.resolver_match.url_name == 'create' %}
+
+                            aria-current="page"
+
+                        {% endif %}
+
                     >
-                        ➕
-                    </span>
 
-                    <span class="main-navigation__label">
-                        Create Wallet
-                    </span>
-                </a>
+                        <span
+
+                            class="main-navigation__icon"
+
+                            aria-hidden="true"
+
+                        >
+
+                            ➕
+
+                        </span>
 
 
-                <!-- =========================================================
-                     PORTFOLIO
-                ========================================================== -->
 
-                <a
-                    href="{% url 'portfolio:index' %}"
-                    class="main-navigation__link{% if request.resolver_match.app_name == 'portfolio' %} main-navigation__link--active{% endif %}"
-                    {% if request.resolver_match.app_name == 'portfolio' %}
-                        aria-current="page"
-                    {% endif %}
-                >
-                    <span
-                        class="main-navigation__icon"
-                        aria-hidden="true"
+                        <span class="main-navigation__label">
+
+                            Create Wallet
+
+                        </span>
+
+                    </a>
+
+
+
+
+
+                    <!-- PORTFOLIO -->
+
+
+
+                    <a
+
+                        href="{% url 'portfolio:index' %}"
+
+                        class="
+
+                            main-navigation__link
+
+                            {% if request.resolver_match.app_name == 'portfolio' %}
+
+                                main-navigation__link--active
+
+                            {% endif %}
+
+                        "
+
+                        {% if request.resolver_match.app_name == 'portfolio' %}
+
+                            aria-current="page"
+
+                        {% endif %}
+
                     >
-                        📊
-                    </span>
 
-                    <span class="main-navigation__label">
-                        Portfolio
-                    </span>
-                </a>
+                        <span
+
+                            class="main-navigation__icon"
+
+                            aria-hidden="true"
+
+                        >
+
+                            📊
+
+                        </span>
 
 
-                <!-- =========================================================
-                     MARKET
-                ========================================================== -->
 
-                <a
-                    href="{% url 'market:home' %}"
-                    class="main-navigation__link{% if request.resolver_match.app_name == 'market' %} main-navigation__link--active{% endif %}"
-                    {% if request.resolver_match.app_name == 'market' %}
-                        aria-current="page"
-                    {% endif %}
-                >
-                    <span
-                        class="main-navigation__icon"
-                        aria-hidden="true"
+                        <span class="main-navigation__label">
+
+                            Portfolio
+
+                        </span>
+
+                    </a>
+
+
+
+
+
+                    <!-- MARKET -->
+
+
+
+                    <a
+
+                        href="{% url 'market:home' %}"
+
+                        class="
+
+                            main-navigation__link
+
+                            {% if request.resolver_match.app_name == 'market' %}
+
+                                main-navigation__link--active
+
+                            {% endif %}
+
+                        "
+
+                        {% if request.resolver_match.app_name == 'market' %}
+
+                            aria-current="page"
+
+                        {% endif %}
+
                     >
-                        📈
-                    </span>
 
-                    <span class="main-navigation__label">
-                        Market
-                    </span>
-                </a>
+                        <span
 
-                <!-- =========================================================
-                TOKEN SCANNER
-           ========================================================== -->
-           
-           <a
-               href="{% url 'token_scanner:index' %}"
-               class="main-navigation__link{% if request.resolver_match.app_name == 'token_scanner' %} main-navigation__link--active{% endif %}"
-               {% if request.resolver_match.app_name == 'token_scanner' %}
-                   aria-current="page"
-               {% endif %}
-           >
-               <span
-                   class="main-navigation__icon"
-                   aria-hidden="true"
-               >
-                   🔎
-               </span>
-           
-               <span class="main-navigation__label">
-                   Token Scanner
-               </span>
-           </a>
+                            class="main-navigation__icon"
+
+                            aria-hidden="true"
+
+                        >
+
+                            📈
+
+                        </span>
 
 
-                <!-- =========================================================
-                TRADING
-           ========================================================== -->
-           
-           <a
-               href="{% url 'trading:home' %}"
-               class="main-navigation__link{% if request.resolver_match.app_name == 'trading' %} main-navigation__link--active{% endif %}"
-               {% if request.resolver_match.app_name == 'trading' %}
-                   aria-current="page"
-               {% endif %}
-           >
-               <span
-                   class="main-navigation__icon"
-                   aria-hidden="true"
-               >
-                   💱
-               </span>
-           
-               <span class="main-navigation__label">
-                   Trading
-               </span>
-           </a>
-                <!-- =========================================================
-                     TRANSACTIONS
-                ========================================================== -->
 
-                <a
-                    href="{% url 'transaction:index' %}"
-                    class="main-navigation__link{% if request.resolver_match.app_name == 'transaction' %} main-navigation__link--active{% endif %}"
-                    {% if request.resolver_match.app_name == 'transaction' %}
-                        aria-current="page"
-                    {% endif %}
-                >
-                    <span
-                        class="main-navigation__icon"
-                        aria-hidden="true"
+                        <span class="main-navigation__label">
+
+                            Market
+
+                        </span>
+
+                    </a>
+
+
+
+
+
+                    <!-- TOKEN SCANNER -->
+
+
+
+                    <a
+
+                        href="{% url 'token_scanner:index' %}"
+
+                        class="
+
+                            main-navigation__link
+
+                            {% if request.resolver_match.app_name == 'token_scanner' %}
+
+                                main-navigation__link--active
+
+                            {% endif %}
+
+                        "
+
+                        {% if request.resolver_match.app_name == 'token_scanner' %}
+
+                            aria-current="page"
+
+                        {% endif %}
+
                     >
-                        ⇄
-                    </span>
 
-                    <span class="main-navigation__label">
-                        Transactions
-                    </span>
-                </a>
+                        <span
+
+                            class="main-navigation__icon"
+
+                            aria-hidden="true"
+
+                        >
+
+                            🔎
+
+                        </span>
 
 
-                <!-- =========================================================
-                     SECURITY
-                ========================================================== -->
 
-                <a
-                    href="{% url 'security:home' %}"
-                    class="main-navigation__link{% if request.resolver_match.app_name == 'security' %} main-navigation__link--active{% endif %}"
-                    {% if request.resolver_match.app_name == 'security' %}
-                        aria-current="page"
-                    {% endif %}
-                >
-                    <span
-                        class="main-navigation__icon"
-                        aria-hidden="true"
+                        <span class="main-navigation__label">
+
+                            Token Scanner
+
+                        </span>
+
+                    </a>
+
+
+
+
+
+                    <!-- TRADING -->
+
+
+
+                    <a
+
+                        href="{% url 'trading:home' %}"
+
+                        class="
+
+                            main-navigation__link
+
+                            {% if request.resolver_match.app_name == 'trading' %}
+
+                                main-navigation__link--active
+
+                            {% endif %}
+
+                        "
+
+                        {% if request.resolver_match.app_name == 'trading' %}
+
+                            aria-current="page"
+
+                        {% endif %}
+
                     >
-                        🛡️
-                    </span>
 
-                    <span class="main-navigation__label">
-                        Security
-                    </span>
-                </a>
+                        <span
 
-            </nav>
+                            class="main-navigation__icon"
 
+                            aria-hidden="true"
 
-            <!-- =============================================================
-                 USER MENU
-            =============================================================== -->
+                        >
 
-            <div class="user-menu">
+                            💱
 
-                <span
-                    class="user-menu__name"
-                    title="{{ user.get_username }}"
-                >
-                    {% if user.get_full_name %}
-                        {{ user.get_full_name }}
-                    {% elif user.email %}
-                        {{ user.email }}
-                    {% elif user.username %}
-                        {{ user.username }}
-                    {% else %}
-                        Account
-                    {% endif %}
-                </span>
+                        </span>
 
 
-                <!-- =========================================================
-                     LOGOUT
-                ========================================================== -->
 
-                <form
-                    method="post"
-                    action="{% url 'accounts:logout' %}"
-                    class="logout-form"
-                >
-                    {% csrf_token %}
+                        <span class="main-navigation__label">
+
+                            Trading
+
+                        </span>
+
+                    </a>
+
+
+
+
+
+                    <!-- TRANSACTIONS -->
+
+
+
+                    <a
+
+                        href="{% url 'transaction:index' %}"
+
+                        class="
+
+                            main-navigation__link
+
+                            {% if request.resolver_match.app_name == 'transaction' %}
+
+                                main-navigation__link--active
+
+                            {% endif %}
+
+                        "
+
+                        {% if request.resolver_match.app_name == 'transaction' %}
+
+                            aria-current="page"
+
+                        {% endif %}
+
+                    >
+
+                        <span
+
+                            class="main-navigation__icon"
+
+                            aria-hidden="true"
+
+                        >
+
+                            ⇄
+
+                        </span>
+
+
+
+                        <span class="main-navigation__label">
+
+                            Transactions
+
+                        </span>
+
+                    </a>
+
+
+
+
+
+                    <!-- SECURITY -->
+
+
+
+                    <a
+
+                        href="{% url 'security:home' %}"
+
+                        class="
+
+                            main-navigation__link
+
+                            {% if request.resolver_match.app_name == 'security' %}
+
+                                main-navigation__link--active
+
+                            {% endif %}
+
+                        "
+
+                        {% if request.resolver_match.app_name == 'security' %}
+
+                            aria-current="page"
+
+                        {% endif %}
+
+                    >
+
+                        <span
+
+                            class="main-navigation__icon"
+
+                            aria-hidden="true"
+
+                        >
+
+                            🛡️
+
+                        </span>
+
+
+
+                        <span class="main-navigation__label">
+
+                            Security
+
+                        </span>
+
+                    </a>
+
+
+
+
+                    <!-- ACCOUNT -->
+
+
+
+                    <a
+
+                        href="{% url 'accounts:account' %}"
+
+                        class="
+
+                            main-navigation__link
+
+                            {% if request.resolver_match.app_name == 'accounts' %}
+
+                                main-navigation__link--active
+
+                            {% endif %}
+
+                        "
+
+                        {% if request.resolver_match.app_name == 'accounts' %}
+
+                            aria-current="page"
+
+                        {% endif %}
+
+                    >
+
+                        <span
+
+                            class="main-navigation__icon"
+
+                            aria-hidden="true"
+
+                        >
+
+                            👤
+
+                        </span>
+
+
+
+                        <span class="main-navigation__label">
+
+                            Account
+
+                        </span>
+
+                    </a>
+
+
+
+
+                    <!-- INSTALL HAPPYWALLET PWA -->
 
                     <button
-                        type="submit"
-                        class="logout-button"
+                        type="button"
+                        class="main-navigation__link pwa-install-button"
+                        id="pwaInstallButton"
+                        aria-label="Install HappyWallet"
                     >
-                        Logout
+                        <span
+                            class="main-navigation__icon"
+                            id="pwaInstallIcon"
+                            aria-hidden="true"
+                        >
+                            ⬇️
+                        </span>
+
+                        <span
+                            class="main-navigation__label"
+                            id="pwaInstallLabel"
+                        >
+                            Install HappyWallet
+                        </span>
                     </button>
-                </form>
+
+                </nav>
+
+
+
+
+
+                <!-- =====================================================
+
+                     USER MENU
+
+                ====================================================== -->
+
+
+
+                <div class="user-menu">
+
+
+
+                    <span
+
+                        class="user-menu__name"
+
+                        title="{{ user.get_username }}"
+
+                    >
+
+                        {% if user.get_full_name %}
+
+                            {{ user.get_full_name }}
+
+                        {% elif user.email %}
+
+                            {{ user.email }}
+
+                        {% elif user.username %}
+
+                            {{ user.username }}
+
+                        {% else %}
+
+                            Account
+
+                        {% endif %}
+
+                    </span>
+
+
+
+
+
+                    <form
+
+                        method="post"
+
+                        action="{% url 'accounts:logout' %}"
+
+                        class="logout-form"
+
+                    >
+
+                        {% csrf_token %}
+
+
+
+                        <button
+
+                            type="submit"
+
+                            class="logout-button"
+
+                        >
+
+                            Logout
+
+                        </button>
+
+                    </form>
+
+
+
+                </div>
+
+
 
             </div>
 
+
+
         {% endif %}
+
+
 
     </div>
 
+
+
 </header>
+
+
+
+
+
+{% if user.is_authenticated %}
+
+
+
+<script>
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        const toggle =
+            document.getElementById(
+                "navigationToggle"
+            );
+
+        const navigation =
+            document.getElementById(
+                "headerNavigation"
+            );
+
+        const installButton =
+            document.getElementById(
+                "pwaInstallButton"
+            );
+
+        const installLabel =
+            document.getElementById(
+                "pwaInstallLabel"
+            );
+
+        const installIcon =
+            document.getElementById(
+                "pwaInstallIcon"
+            );
+
+        let deferredInstallPrompt = null;
+
+        const installedStorageKey =
+            "happywallet-pwa-installed";
+
+
+        /* =====================================================
+           UNIVERSAL THREE-DOT NAVIGATION
+        ====================================================== */
+
+        function menuIsOpen() {
+            return (
+                navigation &&
+                navigation.classList.contains(
+                    "header-navigation--open"
+                )
+            );
+        }
+
+
+        function openMenu() {
+
+            if (!toggle || !navigation) {
+                return;
+            }
+
+            navigation.classList.add(
+                "header-navigation--open"
+            );
+
+            toggle.classList.add(
+                "navigation-toggle--open"
+            );
+
+            toggle.setAttribute(
+                "aria-expanded",
+                "true"
+            );
+
+            toggle.setAttribute(
+                "aria-label",
+                "Close navigation menu"
+            );
+        }
+
+
+        function closeMenu() {
+
+            if (!toggle || !navigation) {
+                return;
+            }
+
+            navigation.classList.remove(
+                "header-navigation--open"
+            );
+
+            toggle.classList.remove(
+                "navigation-toggle--open"
+            );
+
+            toggle.setAttribute(
+                "aria-expanded",
+                "false"
+            );
+
+            toggle.setAttribute(
+                "aria-label",
+                "Open navigation menu"
+            );
+        }
+
+
+        function toggleMenu() {
+
+            if (menuIsOpen()) {
+                closeMenu();
+            } else {
+                openMenu();
+            }
+        }
+
+
+        if (toggle && navigation) {
+
+            toggle.addEventListener(
+                "click",
+                function (event) {
+
+                    event.stopPropagation();
+                    toggleMenu();
+                }
+            );
+
+
+            navigation.addEventListener(
+                "click",
+                function (event) {
+
+                    event.stopPropagation();
+                }
+            );
+
+
+            navigation
+                .querySelectorAll(
+                    ".main-navigation__link:not(#pwaInstallButton)"
+                )
+                .forEach(
+                    function (link) {
+
+                        link.addEventListener(
+                            "click",
+                            closeMenu
+                        );
+                    }
+                );
+
+
+            document.addEventListener(
+                "click",
+                function () {
+
+                    if (menuIsOpen()) {
+                        closeMenu();
+                    }
+                }
+            );
+
+
+            document.addEventListener(
+                "keydown",
+                function (event) {
+
+                    if (
+                        event.key === "Escape" &&
+                        menuIsOpen()
+                    ) {
+
+                        closeMenu();
+                        toggle.focus();
+                    }
+                }
+            );
+        }
+
+
+        /* =====================================================
+           PWA INSTALLATION
+        ====================================================== */
+
+        function isStandaloneMode() {
+
+            return (
+                window.matchMedia(
+                    "(display-mode: standalone)"
+                ).matches ||
+                window.navigator.standalone === true
+            );
+        }
+
+
+        function storedAsInstalled() {
+
+            try {
+
+                return (
+                    window.localStorage.getItem(
+                        installedStorageKey
+                    ) === "1"
+                );
+
+            } catch (error) {
+
+                return false;
+            }
+        }
+
+
+        function rememberInstalled(value) {
+
+            try {
+
+                if (value) {
+
+                    window.localStorage.setItem(
+                        installedStorageKey,
+                        "1"
+                    );
+
+                } else {
+
+                    window.localStorage.removeItem(
+                        installedStorageKey
+                    );
+                }
+
+            } catch (error) {
+
+                /* Storage may be unavailable. */
+            }
+        }
+
+
+        function isInstalled() {
+
+            return (
+                isStandaloneMode() ||
+                storedAsInstalled()
+            );
+        }
+
+
+        function isIOSFamily() {
+
+            const userAgent =
+                window.navigator.userAgent || "";
+
+            const classicIOS =
+                /iPad|iPhone|iPod/i.test(
+                    userAgent
+                );
+
+            const iPadDesktopMode =
+                window.navigator.platform ===
+                    "MacIntel" &&
+                window.navigator.maxTouchPoints >
+                    1;
+
+            return (
+                classicIOS ||
+                iPadDesktopMode
+            );
+        }
+
+
+        function setInstalledUI() {
+
+            if (
+                !installButton ||
+                !installLabel ||
+                !installIcon
+            ) {
+                return;
+            }
+
+            installLabel.textContent =
+                "Already installed on this device";
+
+            installIcon.textContent =
+                "✅";
+
+            installButton.setAttribute(
+                "aria-label",
+                "HappyWallet is already installed on this device"
+            );
+
+            installButton.setAttribute(
+                "aria-disabled",
+                "true"
+            );
+        }
+
+
+        function setInstallAvailableUI() {
+
+            if (
+                !installButton ||
+                !installLabel ||
+                !installIcon
+            ) {
+                return;
+            }
+
+            installLabel.textContent =
+                "Install HappyWallet";
+
+            installIcon.textContent =
+                "⬇️";
+
+            installButton.setAttribute(
+                "aria-label",
+                "Install HappyWallet on this device"
+            );
+
+            installButton.removeAttribute(
+                "aria-disabled"
+            );
+        }
+
+
+        function refreshInstallUI() {
+
+            if (isStandaloneMode()) {
+
+                rememberInstalled(true);
+                setInstalledUI();
+                return;
+            }
+
+            if (deferredInstallPrompt) {
+
+                rememberInstalled(false);
+                setInstallAvailableUI();
+                return;
+            }
+
+            if (storedAsInstalled()) {
+
+                setInstalledUI();
+                return;
+            }
+
+            setInstallAvailableUI();
+        }
+
+
+        window.addEventListener(
+            "beforeinstallprompt",
+            function (event) {
+
+                event.preventDefault();
+
+                deferredInstallPrompt =
+                    event;
+
+                rememberInstalled(false);
+                setInstallAvailableUI();
+            }
+        );
+
+
+        window.addEventListener(
+            "appinstalled",
+            function () {
+
+                deferredInstallPrompt =
+                    null;
+
+                rememberInstalled(true);
+                setInstalledUI();
+            }
+        );
+
+
+        if (installButton) {
+
+            installButton.addEventListener(
+                "click",
+                async function () {
+
+                    closeMenu();
+
+
+                    if (isInstalled()) {
+
+                        setInstalledUI();
+
+                        window.alert(
+                            "HappyWallet is already installed on this device."
+                        );
+
+                        return;
+                    }
+
+
+                    if (deferredInstallPrompt) {
+
+                        const promptEvent =
+                            deferredInstallPrompt;
+
+                        deferredInstallPrompt =
+                            null;
+
+                        await promptEvent.prompt();
+
+                        const choice =
+                            await promptEvent.userChoice;
+
+                        if (
+                            choice.outcome ===
+                            "accepted"
+                        ) {
+
+                            rememberInstalled(true);
+                            setInstalledUI();
+
+                        } else {
+
+                            setInstallAvailableUI();
+                        }
+
+                        return;
+                    }
+
+
+                    if (isIOSFamily()) {
+
+                        window.alert(
+                            "To install HappyWallet on iPhone or iPad:\n\n" +
+                            "1. Open the browser Share menu.\n" +
+                            "2. Choose “Add to Home Screen”.\n" +
+                            "3. Tap “Add”.\n\n" +
+                            "After installation, open HappyWallet from the Home Screen."
+                        );
+
+                        return;
+                    }
+
+
+                    window.alert(
+                        "Your browser did not expose an automatic install prompt.\n\n" +
+                        "Open the browser menu and choose “Install app”, “Install HappyWallet”, or “Add to Home Screen”.\n\n" +
+                        "If no install option appears, verify that the manifest and service worker are loading correctly."
+                    );
+                }
+            );
+        }
+
+
+        const standaloneQuery =
+            window.matchMedia(
+                "(display-mode: standalone)"
+            );
+
+        if (
+            typeof standaloneQuery.addEventListener ===
+            "function"
+        ) {
+
+            standaloneQuery.addEventListener(
+                "change",
+                refreshInstallUI
+            );
+        }
+
+
+        refreshInstallUI();
+    }
+);
+</script>
+
+
+
+{% endif %}

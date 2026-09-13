@@ -1,0 +1,158 @@
+{% load static %}
+
+<!-- =============================================================
+     GLOBAL SITE FOOTER
+============================================================== -->
+
+<footer class="site-footer" role="contentinfo">
+
+    <div class="container">
+
+        <div class="site-footer__grid">
+
+            <!-- Brand -->
+            <section
+                class="site-footer__brand"
+                aria-labelledby="footer-brand-heading"
+            >
+                <a
+                    href="/"
+                    class="site-footer__brand-link"
+                    aria-label="HappyWallet dashboard"
+                >
+                    <img
+                        src="{% static 'images/logo/logo.png' %}"
+                        alt=""
+                        class="site-footer__logo"
+                        width="44"
+                        height="44"
+                        loading="lazy"
+                    >
+
+                    <span id="footer-brand-heading">
+                        HappyWallet
+                    </span>
+                </a>
+
+                <p class="site-footer__description">
+                    A secure, privacy-focused platform for managing,
+                    monitoring and understanding your digital assets.
+                </p>
+
+                <p class="site-footer__security-note">
+                    <span aria-hidden="true">🔒</span>
+                    Your private keys and recovery phrases should always
+                    remain under your control.
+                </p>
+            </section>
+
+
+            <!-- Platform links -->
+            <nav
+                class="site-footer__section"
+                aria-labelledby="footer-platform-heading"
+            >
+                <h2
+                    id="footer-platform-heading"
+                    class="site-footer__heading"
+                >
+                    Platform
+                </h2>
+
+                <ul class="site-footer__links">
+                    <li>
+                        <a href="/">Dashboard</a>
+                    </li>
+
+                    <li>
+                        <a href="/wallet/">Wallet</a>
+                    </li>
+
+                    <li>
+                        <a href="/portfolio/">Portfolio</a>
+                    </li>
+
+                    <li>
+                        <a href="/transactions/">Transactions</a>
+                    </li>
+                </ul>
+            </nav>
+
+
+            <!-- Market links -->
+            <nav
+                class="site-footer__section"
+                aria-labelledby="footer-market-heading"
+            >
+                <h2
+                    id="footer-market-heading"
+                    class="site-footer__heading"
+                >
+                    Markets
+                </h2>
+
+                <ul class="site-footer__links">
+                    <li>
+                        <a href="/market/">Market Data</a>
+                    </li>
+
+                    <li>
+                        <a href="/trading/">Trading</a>
+                    </li>
+
+                    <li>
+                        <a href="/token-scanner/">Token Scanner</a>
+                    </li>
+                </ul>
+            </nav>
+
+
+            <!-- Security links -->
+            <nav
+                class="site-footer__section"
+                aria-labelledby="footer-security-heading"
+            >
+                <h2
+                    id="footer-security-heading"
+                    class="site-footer__heading"
+                >
+                    Security
+                </h2>
+
+                <ul class="site-footer__links">
+                    <li>
+                        <a href="/security/">Security Centre</a>
+                    </li>
+
+                    <li>
+                        <a href="/accounts/">Account</a>
+                    </li>
+
+                    <li>
+                        <a href="/offline/">Offline Access</a>
+                    </li>
+                </ul>
+            </nav>
+
+        </div>
+
+
+        <!-- Bottom bar -->
+        <div class="site-footer__bottom">
+
+            <p class="site-footer__copyright">
+                &copy; {% now "Y" %}
+                <strong>HappyWallet</strong>.
+                All rights reserved.
+            </p>
+
+            <p class="site-footer__disclaimer">
+                Cryptocurrency involves risk. Always verify addresses,
+                networks and transaction details independently.
+            </p>
+
+        </div>
+
+    </div>
+
+</footer>
