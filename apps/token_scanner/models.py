@@ -8,7 +8,7 @@ class Token(models.Model):
     """
     Represents a token discovered by the HappyWallet Token Scanner.
 
-    This model stores analytical/public blockchain information only.
+    Only public blockchain and analytical information is stored.
 
     NEVER store:
         - private keys
@@ -49,6 +49,10 @@ class Token(models.Model):
         blank=True,
     )
 
+    # -------------------------------------------------------------------------
+    # Current observed market metrics
+    # -------------------------------------------------------------------------
+
     liquidity_usd = models.DecimalField(
         max_digits=30,
         decimal_places=2,
@@ -80,6 +84,10 @@ class Token(models.Model):
         decimal_places=2,
         null=True,
         blank=True,
+        validators=[
+            MinValueValidator(0),
+            MaxValueValidator(100),
+        ],
     )
 
     buy_count_24h = models.PositiveIntegerField(
@@ -89,6 +97,10 @@ class Token(models.Model):
     sell_count_24h = models.PositiveIntegerField(
         default=0,
     )
+
+    # -------------------------------------------------------------------------
+    # Contract risk observations
+    # -------------------------------------------------------------------------
 
     contract_verified = models.BooleanField(
         default=False,
@@ -102,9 +114,15 @@ class Token(models.Model):
         default=False,
     )
 
+    # The scanner currently does not have a dedicated liquidity-lock
+    # verification provider, so this must never be set to True speculatively.
     liquidity_locked = models.BooleanField(
         default=False,
     )
+
+    # -------------------------------------------------------------------------
+    # Current observed risk
+    # -------------------------------------------------------------------------
 
     risk_score = models.PositiveSmallIntegerField(
         null=True,
@@ -126,6 +144,7 @@ class Token(models.Model):
 
     class Meta:
         ordering = ["-first_seen_at"]
+
         indexes = [
             models.Index(
                 fields=["chain", "first_seen_at"],
@@ -144,11 +163,29 @@ class Token(models.Model):
 
 class TokenScan(models.Model):
     """
-    Historical snapshot of a token's public on-chain metrics.
+    Immutable historical snapshot of public on-chain observations.
 
-    Each scan represents what HappyWallet observed at a particular
-    point in time.
+    Every scan records not only the metrics observed, but also the blockchain
+    observation window used to produce those metrics.
+
+    This distinction is important:
+
+        observed evidence != complete historical truth
+
+    A LIMITED observation window must not be interpreted as a complete
+    representation of token history.
     """
+
+    class ObservationQuality(models.TextChoices):
+        """
+        Describes the breadth of the blockchain observation window.
+
+        These values describe observation coverage, not token safety.
+        """
+
+        LIMITED = "LIMITED", "Limited"
+        STANDARD = "STANDARD", "Standard"
+        EXTENDED = "EXTENDED", "Extended"
 
     token = models.ForeignKey(
         Token,
@@ -160,6 +197,36 @@ class TokenScan(models.Model):
         auto_now_add=True,
         db_index=True,
     )
+
+    # -------------------------------------------------------------------------
+    # Blockchain observation window
+    # -------------------------------------------------------------------------
+
+    from_block = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+    )
+
+    to_block = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+    )
+
+    observation_block_count = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+    )
+
+    observation_quality = models.CharField(
+        max_length=20,
+        choices=ObservationQuality.choices,
+        blank=True,
+        default="",
+    )
+
+    # -------------------------------------------------------------------------
+    # Observed market metrics
+    # -------------------------------------------------------------------------
 
     liquidity_usd = models.DecimalField(
         max_digits=30,
@@ -206,6 +273,10 @@ class TokenScan(models.Model):
         default=0,
     )
 
+    # -------------------------------------------------------------------------
+    # Observed risk
+    # -------------------------------------------------------------------------
+
     risk_score = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
@@ -217,16 +288,49 @@ class TokenScan(models.Model):
 
     class Meta:
         ordering = ["-scanned_at"]
+
         indexes = [
             models.Index(
                 fields=["token", "-scanned_at"],
             ),
+            models.Index(
+                fields=["observation_quality", "-scanned_at"],
+            ),
+            models.Index(
+                fields=["from_block", "to_block"],
+            ),
         ]
 
     def __str__(self) -> str:
+        token_name = (
+            self.token.symbol
+            or self.token.contract_address
+        )
+
         return (
-            f"{self.token.symbol or self.token.contract_address} "
+            f"{token_name} "
             f"scan @ {self.scanned_at:%Y-%m-%d %H:%M:%S}"
+        )
+
+    @property
+    def has_block_range(self) -> bool:
+        """Return whether this snapshot has a concrete block range."""
+
+        return (
+            self.from_block is not None
+            and self.to_block is not None
+        )
+
+    @property
+    def block_range(self) -> str:
+        """Return a human-readable observation range."""
+
+        if not self.has_block_range:
+            return "Unknown"
+
+        return (
+            f"{self.from_block:,} → "
+            f"{self.to_block:,}"
         )
 
 
@@ -234,7 +338,14 @@ class TokenAlert(models.Model):
     """
     Scanner alert generated from observed token conditions.
 
-    Alerts are informational. They do not execute trades.
+    Alerts are informational only.
+
+    They NEVER:
+        - buy tokens
+        - sell tokens
+        - sign transactions
+        - submit transactions
+        - execute swaps
     """
 
     class AlertType(models.TextChoices):
@@ -292,6 +403,7 @@ class TokenAlert(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+
         indexes = [
             models.Index(
                 fields=["token", "-created_at"],
@@ -302,4 +414,7 @@ class TokenAlert(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.get_severity_display()}: {self.title}"
+        return (
+            f"{self.get_severity_display()}: "
+            f"{self.title}"
+        )

@@ -16,6 +16,7 @@ Important:
     market buy or sell.
 
 For that reason, this module uses known liquidity-pool addresses.
+
 A transfer involving a configured pool can then be classified as:
 
     pool -> trader      BUY
@@ -43,7 +44,7 @@ ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
 TRANSFER_EVENT_TOPIC = (
     "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a"
-    "3e6f0f9c"
+    "4df523b3ef"
 )
 
 
@@ -153,9 +154,7 @@ class DemandAnalysis:
 
     @property
     def net_buy_volume(self) -> Decimal:
-        """
-        Difference between observed buy and sell volume.
-        """
+        """Difference between observed buy and sell volume."""
 
         return (
             self.buy_volume
@@ -164,9 +163,7 @@ class DemandAnalysis:
 
     @property
     def net_buy_count(self) -> int:
-        """
-        Difference between buy and sell transaction/event counts.
-        """
+        """Difference between buy and sell event counts."""
 
         return (
             self.buy_count
@@ -175,9 +172,7 @@ class DemandAnalysis:
 
     @property
     def has_positive_demand(self) -> bool:
-        """
-        Return True when observed buy volume exceeds sell volume.
-        """
+        """Return True when observed buy volume exceeds sell volume."""
 
         return (
             self.buy_volume > self.sell_volume
@@ -220,7 +215,7 @@ class EVMDemandAnalyzer:
         rpc_url: str,
         *,
         timeout: float = 10.0,
-        log_chunk_size: int = 2_000,
+        log_chunk_size: int = 10,
         max_events: int = 50_000,
     ) -> None:
         if not isinstance(rpc_url, str) or not rpc_url.strip():
@@ -228,14 +223,31 @@ class EVMDemandAnalyzer:
                 "rpc_url must be a non-empty string."
             )
 
-        if log_chunk_size < 1:
+        if (
+            isinstance(log_chunk_size, bool)
+            or not isinstance(log_chunk_size, int)
+            or log_chunk_size < 1
+        ):
             raise ValueError(
-                "log_chunk_size must be at least 1."
+                "log_chunk_size must be a positive integer."
             )
 
-        if max_events < 1:
+        if (
+            isinstance(max_events, bool)
+            or not isinstance(max_events, int)
+            or max_events < 1
+        ):
             raise ValueError(
-                "max_events must be at least 1."
+                "max_events must be a positive integer."
+            )
+
+        if (
+            isinstance(timeout, bool)
+            or not isinstance(timeout, (int, float))
+            or timeout <= 0
+        ):
+            raise ValueError(
+                "timeout must be a positive number."
             )
 
         self.rpc_url = rpc_url.strip()
@@ -267,26 +279,8 @@ class EVMDemandAnalyzer:
         """
         Analyze token demand within a bounded block range.
 
-        Parameters
-        ----------
-        token_address:
-            ERC-20 token contract.
-
-        pool_addresses:
-            Known liquidity-pool addresses for the token.
-
-        from_block:
-            First block to scan.
-
-        to_block:
-            Last block to scan.
-
-        decimals:
-            ERC-20 decimals.
-
-        Returns
-        -------
-        DemandAnalysis
+        No transaction is submitted.
+        No wallet credentials are accessed.
         """
 
         token = self._validate_address(
@@ -308,9 +302,14 @@ class EVMDemandAnalyzer:
             to_block=to_block,
         )
 
-        if decimals < 0 or decimals > 255:
+        if (
+            isinstance(decimals, bool)
+            or not isinstance(decimals, int)
+            or decimals < 0
+            or decimals > 255
+        ):
             raise ValueError(
-                "decimals must be between 0 and 255."
+                "decimals must be an integer between 0 and 255."
             )
 
         if to_block is None:
@@ -517,141 +516,114 @@ class EVMDemandAnalyzer:
     # Transfer logs
     # ------------------------------------------------------------------
 
+    def _get_transfer_logs(
+        self,
+        *,
+        token_address: str,
+        from_block: int,
+        to_block: int,
+    ) -> list[Any]:
+        """
+        Retrieve ERC-20 Transfer events in bounded, retryable chunks.
 
-def _get_transfer_logs(
-    self,
-    *,
-    token_address: str,
-    from_block: int,
-    to_block: int,
-) -> list[Any]:
-    """
-    Retrieve ERC-20 Transfer events in bounded, retryable chunks.
+        The provider may impose limits on eth_getLogs requests.
 
-    The Ethereum JSON-RPC ``eth_getLogs`` method is subject to
-    provider-specific block-range and response-size limits.
+        The scanner therefore:
 
-    This implementation therefore:
+            1. Scans incrementally.
+            2. Retries transient failures.
+            3. Reduces chunk size after repeated failure.
+            4. Retries the same range after resizing.
+            5. Never silently skips blocks.
+            6. Preserves the original exception as the cause.
 
-        1. Scans the requested range incrementally.
-        2. Retries transient RPC failures.
-        3. Reduces the chunk size when a provider rejects a range.
-        4. Never skips a block range silently.
-        5. Preserves the original exception as the cause.
-        6. Never exposes the configured RPC URL in errors.
+        This method is strictly read-only.
+        """
 
-    No transaction is submitted and no wallet credentials are used.
-    """
+        logs: list[Any] = []
 
-    logs: list[Any] = []
+        current = from_block
 
-    current = from_block
+        chunk_size = self.log_chunk_size
 
-    # Start with the configured chunk size.  If the provider rejects
-    # a range, the value is reduced for subsequent requests.
-    chunk_size = self.log_chunk_size
+        min_chunk_size = 1
 
-    # Prevent the adaptive logic from reducing the request to zero.
-    min_chunk_size = 1
+        max_attempts = 3
 
-    # A small retry count is sufficient for transient provider errors.
-    max_attempts = 3
+        while current <= to_block:
+            chunk_end = min(
+                current + chunk_size - 1,
+                to_block,
+            )
 
-    while current <= to_block:
-        chunk_end = min(
-            current + chunk_size - 1,
-            to_block,
-        )
+            attempts = 0
 
-        attempts = 0
+            while True:
+                attempts += 1
 
-        while True:
-            attempts += 1
-
-            try:
-                chunk = self.web3.eth.get_logs(
-                    {
-                        "address": token_address,
-                        "topics": [
-                            TRANSFER_EVENT_TOPIC,
-                        ],
-                        "fromBlock": current,
-                        "toBlock": chunk_end,
-                    }
-                )
-
-                logs.extend(chunk)
-
-                # The request succeeded.  Move forward without
-                # skipping any blocks.
-                current = chunk_end + 1
-
-                # If we previously reduced the chunk size and this
-                # request succeeded, cautiously grow it again.
-                if chunk_size < self.log_chunk_size:
-                    chunk_size = min(
-                        self.log_chunk_size,
-                        chunk_size * 2,
+                try:
+                    chunk = self.web3.eth.get_logs(
+                        {
+                            "address": token_address,
+                            "topics": [
+                                TRANSFER_EVENT_TOPIC,
+                            ],
+                            "fromBlock": current,
+                            "toBlock": chunk_end,
+                        }
                     )
 
-                break
+                    logs.extend(chunk)
 
-            except Web3Exception as exc:
-                if attempts < max_attempts:
-                    continue
+                    # Successfully processed this complete range.
+                    current = chunk_end + 1
 
-                # If the provider rejected the range, reduce the
-                # chunk size and retry the same block range.
-                if chunk_size > min_chunk_size:
-                    chunk_size = max(
-                        min_chunk_size,
-                        chunk_size // 2,
-                    )
+                    # Slowly recover toward the configured chunk size
+                    # after successful smaller requests.
+                    if chunk_size < self.log_chunk_size:
+                        chunk_size = min(
+                            self.log_chunk_size,
+                            chunk_size * 2,
+                        )
 
-                    chunk_end = min(
-                        current + chunk_size - 1,
-                        to_block,
-                    )
+                    break
 
-                    continue
+                except (
+                    Web3Exception,
+                    Exception,
+                ) as exc:
+                    if attempts < max_attempts:
+                        continue
 
-                raise DemandRPCError(
-                    (
-                        "Unable to retrieve Transfer logs for "
-                        f"blocks {current}-{chunk_end} "
-                        f"after {max_attempts} attempts "
-                        f"({type(exc).__name__})."
-                    )
-                ) from exc
+                    # The current range may be too large for the
+                    # provider. Reduce it and retry the SAME range.
+                    if chunk_size > min_chunk_size:
+                        chunk_size = max(
+                            min_chunk_size,
+                            chunk_size // 2,
+                        )
 
-            except Exception as exc:
-                if attempts < max_attempts:
-                    continue
+                        chunk_end = min(
+                            current + chunk_size - 1,
+                            to_block,
+                        )
 
-                if chunk_size > min_chunk_size:
-                    chunk_size = max(
-                        min_chunk_size,
-                        chunk_size // 2,
-                    )
+                        # Important: a smaller range receives a new
+                        # retry budget.
+                        attempts = 0
 
-                    chunk_end = min(
-                        current + chunk_size - 1,
-                        to_block,
-                    )
+                        continue
 
-                    continue
+                    raise DemandRPCError(
+                        (
+                            "Unable to retrieve Transfer logs for "
+                            f"blocks {current}-{chunk_end} "
+                            f"after {max_attempts} attempts "
+                            f"({type(exc).__name__})."
+                        )
+                    ) from exc
 
-                raise DemandRPCError(
-                    (
-                        "Unexpected error retrieving Transfer logs "
-                        f"for blocks {current}-{chunk_end} "
-                        f"after {max_attempts} attempts "
-                        f"({type(exc).__name__})."
-                    )
-                ) from exc
-
-    return logs
-
+        return logs
 
     # ------------------------------------------------------------------
     # Event classification
@@ -672,7 +644,7 @@ def _get_transfer_logs(
             zero -> trader
                 MINT
 
-            trader -> zero/dead
+            trader -> zero
                 BURN
 
             pool -> trader
@@ -770,10 +742,14 @@ def _get_transfer_logs(
                         )
                     ),
                     transaction_hash=transaction_hash,
-                    from_address=from_address
-                    or ZERO_ADDRESS,
-                    to_address=to_address
-                    or ZERO_ADDRESS,
+                    from_address=(
+                        from_address
+                        or ZERO_ADDRESS
+                    ),
+                    to_address=(
+                        to_address
+                        or ZERO_ADDRESS
+                    ),
                     amount_raw=amount_raw,
                     amount=amount,
                     pool_address=pool_address,
@@ -831,9 +807,7 @@ def _get_transfer_logs(
     def _topic_address(
         topic: Any,
     ) -> str:
-        """
-        Decode an indexed address from a 32-byte topic.
-        """
+        """Decode an indexed address from a 32-byte topic."""
 
         if isinstance(topic, bytes):
             value = topic.hex()
@@ -856,9 +830,7 @@ def _get_transfer_logs(
     def _decode_uint256(
         data: Any,
     ) -> int:
-        """
-        Decode the uint256 event amount.
-        """
+        """Decode the uint256 event amount."""
 
         if isinstance(data, bytes):
             return int.from_bytes(
@@ -880,9 +852,7 @@ def _get_transfer_logs(
     def _transaction_hash(
         log: Any,
     ) -> str:
-        """
-        Normalize transaction hash to a hex string.
-        """
+        """Normalize transaction hash to a hex string."""
 
         value = log.get(
             "transactionHash",
@@ -929,9 +899,9 @@ def _get_transfer_logs(
         from_block: int,
         to_block: int | None,
     ) -> None:
-        if not isinstance(
-            from_block,
-            int,
+        if (
+            isinstance(from_block, bool)
+            or not isinstance(from_block, int)
         ):
             raise ValueError(
                 "from_block must be an integer."
@@ -943,9 +913,9 @@ def _get_transfer_logs(
             )
 
         if to_block is not None:
-            if not isinstance(
-                to_block,
-                int,
+            if (
+                isinstance(to_block, bool)
+                or not isinstance(to_block, int)
             ):
                 raise ValueError(
                     "to_block must be an integer."

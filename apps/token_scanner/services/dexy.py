@@ -47,7 +47,7 @@ from web3.exceptions import Web3Exception
 # ============================================================================
 
 DEFAULT_TIMEOUT_SECONDS = 10.0
-DEFAULT_LOG_CHUNK_SIZE = 2_000
+DEFAULT_LOG_CHUNK_SIZE = 10
 DEFAULT_MAX_BLOCKS = 100
 DEFAULT_MAX_POOLS = 100
 
@@ -61,28 +61,16 @@ MIN_MAX_POOLS = 1
 # PairCreated event
 # ============================================================================
 
-# Uniswap V2-style PairCreated event:
-#
-# PairCreated(
-#     address indexed token0,
-#     address indexed token1,
-#     address pair,
-#     uint256
-# )
-#
-# keccak256(
-#     "PairCreated(address,address,address,uint256)"
-# )
-
 PAIR_CREATED_EVENT_SIGNATURE = (
     "PairCreated(address,address,address,uint256)"
 )
 
-# Web3.py may return the hash without the 0x prefix from .hex().
-# The constant itself is kept compatible with that behavior.
-PAIR_CREATED_EVENT_TOPIC = Web3.keccak(
-    text=PAIR_CREATED_EVENT_SIGNATURE
-).hex()
+PAIR_CREATED_EVENT_TOPIC = (
+    "0x"
+    + Web3.keccak(
+        text=PAIR_CREATED_EVENT_SIGNATURE
+    ).hex().removeprefix("0x")
+)
 
 
 # ============================================================================
@@ -123,12 +111,7 @@ class DexFactory:
     pair_created_topic: str = PAIR_CREATED_EVENT_TOPIC
 
     def __post_init__(self) -> None:
-        """
-        Validate and normalize factory configuration.
-
-        Event topics are stored internally in canonical 0x-prefixed
-        hexadecimal form.
-        """
+        """Validate and normalize factory configuration."""
 
         if not isinstance(self.name, str) or not self.name.strip():
             raise DexDiscoveryConfigurationError(
@@ -146,9 +129,8 @@ class DexFactory:
 
         try:
             normalized_address = Web3.to_checksum_address(
-                self.address
+                self.address.strip()
             )
-
         except (TypeError, ValueError) as exc:
             raise DexDiscoveryConfigurationError(
                 "Factory address must be a valid "
@@ -161,15 +143,34 @@ class DexFactory:
             normalized_address,
         )
 
-        if not isinstance(
-            self.pair_created_topic,
-            str,
-        ):
+        topic = self._normalize_topic_configuration(
+            self.pair_created_topic
+        )
+
+        object.__setattr__(
+            self,
+            "pair_created_topic",
+            topic,
+        )
+
+    @staticmethod
+    def _normalize_topic_configuration(
+        value: Any,
+    ) -> str:
+        """
+        Validate and canonicalize a factory event topic.
+
+        Returns:
+
+            0x + 64 hexadecimal characters
+        """
+
+        if not isinstance(value, str):
             raise DexDiscoveryConfigurationError(
                 "pair_created_topic must be a string."
             )
 
-        topic = self.pair_created_topic.strip()
+        topic = value.strip()
 
         if not topic:
             raise DexDiscoveryConfigurationError(
@@ -177,33 +178,24 @@ class DexFactory:
                 "non-empty string."
             )
 
-        # Canonical internal representation:
-        # 0x + 64 hexadecimal characters.
-        if not topic.lower().startswith("0x"):
-            topic = f"0x{topic}"
+        if topic.lower().startswith("0x"):
+            topic = topic[2:]
 
-        topic_body = topic[2:]
-
-        if len(topic_body) != 64:
+        if len(topic) != 64:
             raise DexDiscoveryConfigurationError(
                 "pair_created_topic must contain "
                 "exactly 32 bytes of hexadecimal data."
             )
 
         try:
-            int(topic_body, 16)
-
+            int(topic, 16)
         except ValueError as exc:
             raise DexDiscoveryConfigurationError(
                 "pair_created_topic must be valid "
                 "hexadecimal data."
             ) from exc
 
-        object.__setattr__(
-            self,
-            "pair_created_topic",
-            "0x" + topic_body.lower(),
-        )
+        return "0x" + topic.lower()
 
 
 @dataclass(frozen=True)
@@ -284,6 +276,20 @@ class EthereumDexDiscovery:
         PairCreated(address,address,address,uint256)
 
     No financial information is fabricated.
+
+    Security boundary
+    -----------------
+    This service only reads blockchain state through Web3.py.
+
+    It does not:
+
+    - sign transactions
+    - submit transactions
+    - create approvals
+    - execute swaps
+    - transfer tokens
+    - buy tokens
+    - sell tokens
     """
 
     def __init__(
@@ -328,6 +334,8 @@ class EthereumDexDiscovery:
     def latest_block(self) -> int:
         """
         Return the latest block reported by the configured RPC.
+
+        This is a read-only blockchain operation.
         """
 
         self._ensure_connection()
@@ -365,6 +373,10 @@ class EthereumDexDiscovery:
 
         RPC connectivity is only required when actual factory discovery
         will be performed.
+
+        ``complete`` means the requested discovery operation completed
+        without an internal discovery failure. It does not mean that
+        pools were necessarily found.
         """
 
         start = self._validate_block_number(
@@ -374,7 +386,6 @@ class EthereumDexDiscovery:
 
         if to_block is None:
             end = self.latest_block()
-
         else:
             end = self._validate_block_number(
                 to_block,
@@ -387,6 +398,10 @@ class EthereumDexDiscovery:
             max_blocks=self.max_blocks,
         )
 
+        # No configured factories means there is nothing to query.
+        #
+        # The operation itself completed normally, therefore complete=True.
+        # The warning explicitly communicates that no DEX discovery occurred.
         if not self.factories:
             return DexDiscoveryResult(
                 from_block=start,
@@ -395,7 +410,7 @@ class EthereumDexDiscovery:
                 logs_examined=0,
                 pools_discovered=0,
                 factories_examined=0,
-                complete=False,
+                complete=True,
                 warnings=(
                     "No DEX factories are configured. "
                     "Pool discovery was not performed.",
@@ -517,7 +532,10 @@ class EthereumDexDiscovery:
 
             start = end + 1
 
-        return tuple(pools), logs_examined
+        return (
+            tuple(pools),
+            logs_examined,
+        )
 
     def _get_factory_logs(
         self,
@@ -528,14 +546,19 @@ class EthereumDexDiscovery:
     ) -> list[Any]:
         """
         Retrieve factory creation events from the RPC.
+
+        Uses a bounded eth_getLogs request. Block numbers are
+        explicitly encoded as hexadecimal JSON-RPC quantities so
+        the request is compatible with RPC providers such as
+        Alchemy Free tier.
         """
 
         try:
             logs = self.web3.eth.get_logs(
                 {
                     "address": factory.address,
-                    "fromBlock": from_block,
-                    "toBlock": to_block,
+                    "fromBlock": hex(from_block),
+                    "toBlock": hex(to_block),
                     "topics": [
                         factory.pair_created_topic
                     ],
@@ -548,14 +571,16 @@ class EthereumDexDiscovery:
             raise DexDiscoveryRPCError(
                 "Ethereum RPC failed while reading "
                 f"{factory.name} factory logs for "
-                f"blocks {from_block}-{to_block}."
+                f"blocks {from_block}-{to_block}: "
+                f"{exc}"
             ) from exc
 
         except Exception as exc:
             raise DexDiscoveryRPCError(
                 "Unexpected error while reading "
                 f"{factory.name} factory logs for "
-                f"blocks {from_block}-{to_block}."
+                f"blocks {from_block}-{to_block}: "
+                f"{exc}"
             ) from exc
 
     # =========================================================================
@@ -631,10 +656,8 @@ class EthereumDexDiscovery:
         if token0 is None or token1 is None:
             return None
 
-        data = log.get("data")
-
         pool_address = self._decode_pool_address(
-            data
+            log.get("data")
         )
 
         if pool_address is None:
@@ -699,7 +722,6 @@ class EthereumDexDiscovery:
         elif hasattr(value, "hex"):
             try:
                 raw = value.hex()
-
             except Exception:
                 return None
 
@@ -716,7 +738,6 @@ class EthereumDexDiscovery:
 
         try:
             int(raw, 16)
-
         except ValueError:
             return None
 
@@ -733,28 +754,11 @@ class EthereumDexDiscovery:
         address right-aligned.
         """
 
-        if isinstance(value, bytes):
-            raw = value
+        raw = EthereumDexDiscovery._coerce_hex_bytes(
+            value
+        )
 
-        elif isinstance(value, str):
-            value = value.removeprefix("0x")
-
-            try:
-                raw = bytes.fromhex(value)
-
-            except ValueError:
-                return None
-
-        elif hasattr(value, "hex"):
-            try:
-                raw = bytes.fromhex(
-                    value.hex().removeprefix("0x")
-                )
-
-            except (TypeError, ValueError):
-                return None
-
-        else:
+        if raw is None:
             return None
 
         if len(raw) != 32:
@@ -766,8 +770,7 @@ class EthereumDexDiscovery:
             return Web3.to_checksum_address(
                 address
             )
-
-        except ValueError:
+        except (TypeError, ValueError):
             return None
 
     @staticmethod
@@ -788,28 +791,11 @@ class EthereumDexDiscovery:
         32-byte word.
         """
 
-        if isinstance(value, bytes):
-            raw = value
+        raw = EthereumDexDiscovery._coerce_hex_bytes(
+            value
+        )
 
-        elif isinstance(value, str):
-            value = value.removeprefix("0x")
-
-            try:
-                raw = bytes.fromhex(value)
-
-            except ValueError:
-                return None
-
-        elif hasattr(value, "hex"):
-            try:
-                raw = bytes.fromhex(
-                    value.hex().removeprefix("0x")
-                )
-
-            except (TypeError, ValueError):
-                return None
-
-        else:
+        if raw is None:
             return None
 
         if len(raw) < 32:
@@ -821,9 +807,55 @@ class EthereumDexDiscovery:
             return Web3.to_checksum_address(
                 address
             )
-
-        except ValueError:
+        except (TypeError, ValueError):
             return None
+
+    @staticmethod
+    def _coerce_hex_bytes(
+        value: Any,
+    ) -> bytes | None:
+        """
+        Convert supported raw RPC hexadecimal representations to bytes.
+
+        This helper is deliberately restricted to decoding paths.
+
+        It is NOT used by _normalize_address(), because ordinary
+        address normalization accepts string addresses only.
+        """
+
+        if isinstance(value, bytes):
+            return value
+
+        if isinstance(value, str):
+            raw = value.strip()
+
+            if not raw:
+                return None
+
+            raw = raw.removeprefix("0x")
+
+            try:
+                return bytes.fromhex(raw)
+            except ValueError:
+                return None
+
+        if hasattr(value, "hex"):
+            try:
+                raw = value.hex()
+            except Exception:
+                return None
+
+            if not isinstance(raw, str):
+                return None
+
+            raw = raw.removeprefix("0x")
+
+            try:
+                return bytes.fromhex(raw)
+            except ValueError:
+                return None
+
+        return None
 
     # =========================================================================
     # Connection / configuration
@@ -832,6 +864,8 @@ class EthereumDexDiscovery:
     def _ensure_connection(self) -> None:
         """
         Ensure the Ethereum RPC endpoint is reachable.
+
+        This performs a connectivity check only.
         """
 
         try:
@@ -857,9 +891,7 @@ class EthereumDexDiscovery:
         max_blocks: int,
         max_pools: int,
     ) -> None:
-        """
-        Validate service configuration.
-        """
+        """Validate service configuration."""
 
         if not isinstance(rpc_url, str):
             raise DexDiscoveryConfigurationError(
@@ -878,7 +910,6 @@ class EthereumDexDiscovery:
 
         try:
             timeout_value = float(timeout)
-
         except (TypeError, ValueError) as exc:
             raise DexDiscoveryConfigurationError(
                 "timeout must be a positive number."
@@ -998,7 +1029,6 @@ class EthereumDexDiscovery:
 
         try:
             block_number = int(value)
-
         except (TypeError, ValueError):
             return None
 
@@ -1012,46 +1042,27 @@ class EthereumDexDiscovery:
         value: Any,
     ) -> str | None:
         """
-        Normalize an Ethereum address.
+        Normalize a string Ethereum address.
+
+        Raw bytes and arbitrary hex-like objects are deliberately
+        rejected here.
+
+        Byte-oriented blockchain data must be decoded explicitly by
+        _decode_indexed_address() or _decode_pool_address().
         """
 
-        if isinstance(value, bytes):
-            if len(value) != 20:
-                return None
+        if not isinstance(value, str):
+            return None
 
-            value = "0x" + value.hex()
+        value = value.strip()
 
-        elif isinstance(value, str):
-            value = value.strip()
-
-            if not value:
-                return None
-
-        elif hasattr(value, "hex"):
-            try:
-                raw = value.hex()
-
-            except Exception:
-                return None
-
-            if not isinstance(raw, str):
-                return None
-
-            raw = raw.removeprefix("0x")
-
-            if len(raw) != 40:
-                return None
-
-            value = "0x" + raw
-
-        else:
+        if not value:
             return None
 
         try:
             return Web3.to_checksum_address(
                 value
             )
-
         except (TypeError, ValueError):
             return None
 
@@ -1061,6 +1072,16 @@ class EthereumDexDiscovery:
     ) -> str | None:
         """
         Normalize an Ethereum transaction hash.
+
+        Transaction hashes may arrive from Web3.py as:
+
+        - bytes
+        - strings
+        - hex-compatible objects
+
+        The result is always returned as:
+
+            0x + lowercase hexadecimal
         """
 
         if value is None:
@@ -1080,7 +1101,6 @@ class EthereumDexDiscovery:
         elif hasattr(value, "hex"):
             try:
                 raw = value.hex()
-
             except Exception:
                 return None
 
@@ -1097,10 +1117,7 @@ class EthereumDexDiscovery:
 
         try:
             int(raw, 16)
-
         except ValueError:
             return None
 
         return "0x" + raw.lower()
-    
-    

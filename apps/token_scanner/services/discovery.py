@@ -72,7 +72,9 @@ TRANSFER_EVENT_TOPIC = Web3.keccak(
 ).hex()
 
 DEFAULT_TIMEOUT_SECONDS = 10.0
-DEFAULT_LOG_CHUNK_SIZE = 2_000
+# Alchemy Free currently permits eth_getLogs requests over
+# a maximum 10-block range.
+DEFAULT_LOG_CHUNK_SIZE = 10
 DEFAULT_MAX_BLOCKS = 100
 DEFAULT_MAX_CANDIDATES = 100
 

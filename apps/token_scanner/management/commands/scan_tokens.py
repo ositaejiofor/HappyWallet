@@ -5,18 +5,18 @@ from typing import Any
 from django.core.management.base import BaseCommand, CommandError
 
 from apps.blockchain.services.network import blockchain_network_service
-from apps.token_scanner.services.discovery import (
-    EthereumTokenDiscovery,
-    TokenDiscoveryError,
-)
+from apps.token_scanner.services.dex_config import ETHEREUM_DEX_FACTORIES
 from apps.token_scanner.services.persistence import TokenScanPersistence
-from apps.token_scanner.services.scanner import EVMTokenScanner
+from apps.token_scanner.services.scanner import (
+    EVMTokenScanner,
+    TokenDiscoveryScanError,
+)
 
 
 class Command(BaseCommand):
     help = (
-        "Discover newly created ERC-20-like contracts on Ethereum Mainnet, "
-        "scan their on-chain state, and persist historical observations."
+        "Discover real Ethereum DEX liquidity pools, analyze the tokens "
+        "behind those pools, and persist read-only scanner observations."
     )
 
     def add_arguments(self, parser):
@@ -51,8 +51,8 @@ class Command(BaseCommand):
             "--complete-holder-history",
             action="store_true",
             help=(
-                "Mark holder analysis as a complete-history request. "
-                "The analyzer may still be bounded by its configured limits."
+                "Request complete holder-history analysis where supported. "
+                "The analyzer may still apply configured safety limits."
             ),
         )
 
@@ -91,12 +91,10 @@ class Command(BaseCommand):
             blocks=options["blocks"],
         )
 
-        discovery = EthereumTokenDiscovery(
-            rpc_url=rpc_url,
-        )
-
         scanner = EVMTokenScanner(
             rpc_url=rpc_url,
+            factories=ETHEREUM_DEX_FACTORIES,
+            dex_max_blocks=100,
         )
 
         persistence = TokenScanPersistence()
@@ -107,109 +105,151 @@ class Command(BaseCommand):
             )
         )
         self.stdout.write(
-            f"Network: Ethereum Mainnet (chain ID {network.chain_id})"
+            "Mode: READ-ONLY"
         )
+        self.stdout.write(
+            "Network: Ethereum Mainnet "
+            f"(chain ID {network.chain_id})"
+        )
+        self.stdout.write(
+            f"DEX factories: {len(ETHEREUM_DEX_FACTORIES)}"
+        )
+        for factory in ETHEREUM_DEX_FACTORIES:
+            self.stdout.write(
+                f"  - {factory.name}: {factory.address}"
+            )
+
         self.stdout.write(
             f"Block range: {start_block} -> {end_block}"
         )
+        self.stdout.write(
+            f"Maximum tokens: {max_tokens}"
+        )
 
         try:
-            discovered = discovery.discover(
+            discovery_result = scanner.discover_and_scan(
                 from_block=start_block,
                 to_block=end_block,
+                max_tokens=max_tokens,
+                complete_holder_history=options[
+                    "complete_holder_history"
+                ],
             )
-        except TokenDiscoveryError as exc:
+        except TokenDiscoveryScanError as exc:
             raise CommandError(
-                f"Token discovery failed: {exc}"
+                f"DEX token discovery/scan failed: {exc}"
             ) from exc
         except Exception as exc:
             raise CommandError(
-                f"Unexpected token discovery failure: {exc}"
+                f"Unexpected DEX token scanner failure: {exc}"
             ) from exc
 
-        self.stdout.write(
-            f"Transactions examined: {discovered.transactions_examined}"
-        )
-        self.stdout.write(
-            f"Contracts examined: {discovered.contracts_examined}"
-        )
-        self.stdout.write(
-            f"ERC-20-like candidates: {discovered.candidate_count}"
-        )
+        discovery = discovery_result.discovery
 
-        if discovered.warnings:
-            self.stdout.write(
-                self.style.WARNING(
-                    "Discovery warnings:"
-                )
+        self.stdout.write("")
+        self.stdout.write(
+            self.style.NOTICE(
+                "DEX discovery result"
             )
-            for warning in discovered.warnings:
-                self.stdout.write(f"  - {warning}")
+        )
+        self.stdout.write(
+            f"Factories examined: {discovery.factories_examined}"
+        )
+        self.stdout.write(
+            f"Pool logs examined: {discovery.logs_examined}"
+        )
+        self.stdout.write(
+            f"Pools discovered: {discovery.pool_count}"
+        )
+        self.stdout.write(
+            f"Token contracts discovered: "
+            f"{discovery_result.token_count}"
+        )
 
-        if not discovered.candidates:
+        if discovery.complete:
             self.stdout.write(
                 self.style.SUCCESS(
-                    "No ERC-20-like token candidates were discovered "
-                    "in this block range."
+                    "DEX discovery completed within configured limits."
+                )
+            )
+        else:
+            self.stdout.write(
+                self.style.WARNING(
+                    "DEX discovery was incomplete or reached a configured "
+                    "safety limit."
+                )
+            )
+
+        if discovery.warnings:
+            self.stdout.write(
+                self.style.WARNING(
+                    "DEX discovery warnings:"
+                )
+            )
+            for warning in discovery.warnings:
+                self.stdout.write(
+                    f"  - {warning}"
+                )
+
+        if discovery_result.warnings:
+            self.stdout.write(
+                self.style.WARNING(
+                    "Scanner warnings:"
+                )
+            )
+            for warning in discovery_result.warnings:
+                self.stdout.write(
+                    f"  - {warning}"
+                )
+
+        if not discovery_result.tokens:
+            self.stdout.write("")
+            self.stdout.write(
+                self.style.SUCCESS(
+                    "No real token contracts were discovered from "
+                    "DEX pool-creation events in this block range."
                 )
             )
             return
-
-        candidates = discovered.candidates[:max_tokens]
-
-        if len(discovered.candidates) > max_tokens:
-            self.stdout.write(
-                self.style.WARNING(
-                    f"Limiting scan to {max_tokens} of "
-                    f"{discovered.candidate_count} candidates."
-                )
-            )
 
         persisted_count = 0
         alert_count = 0
         failed_count = 0
 
-        for candidate in candidates:
+        for discovered_token in discovery_result.tokens:
+            result = discovered_token.scan
+            address = discovered_token.token_address
+
             self.stdout.write("")
             self.stdout.write(
-                f"Scanning {candidate.address}"
+                f"Token: {result.name or '(unknown name)'} "
+                f"({result.symbol or '(unknown symbol)'})"
+            )
+            self.stdout.write(
+                f"Address: {address}"
+            )
+            self.stdout.write(
+                f"DEX pools: {len(discovered_token.pool_addresses)}"
             )
 
-            if candidate.name or candidate.symbol:
-                self.stdout.write(
-                    f"  Token: "
-                    f"{candidate.name or '(unknown name)'} "
-                    f"({candidate.symbol or '(unknown symbol)'})"
-                )
-
             try:
-                result = scanner.scan(
-                    candidate.address,
-                    pool_addresses=(),
-                    from_block=start_block,
-                    to_block=end_block,
-                    decimals=candidate.decimals,
-                    contract_verified=candidate.contract.verified,
-                    complete_holder_history=options[
-                        "complete_holder_history"
-                    ],
-                )
-
                 persistence_result = persistence.persist(
                     result,
                 )
 
                 persisted_count += 1
-                alert_count += len(persistence_result.alerts)
+                alert_count += len(
+                    persistence_result.alerts
+                )
 
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"  Persisted scan: "
-                        f"{persistence_result.token.symbol or candidate.address}"
+                        "  Persisted real blockchain observation."
                     )
                 )
                 self.stdout.write(
-                    f"  Risk score: {result.risk.score}/100 "
+                    f"  Risk score: "
+                    f"{result.risk.score}/100 "
                     f"({result.risk.rating})"
                 )
                 self.stdout.write(
@@ -239,9 +279,10 @@ class Command(BaseCommand):
 
             except Exception as exc:
                 failed_count += 1
+
                 self.stdout.write(
                     self.style.ERROR(
-                        f"  Scan failed for {candidate.address}: {exc}"
+                        f"  Persistence failed for {address}: {exc}"
                     )
                 )
 
@@ -252,36 +293,34 @@ class Command(BaseCommand):
             )
         )
         self.stdout.write(
-            f"Candidates discovered: {discovered.candidate_count}"
+            f"DEX pools discovered: {discovery.pool_count}"
         )
         self.stdout.write(
-            f"Candidates scanned: {len(candidates)}"
+            f"Token contracts discovered: "
+            f"{discovery_result.token_count}"
         )
         self.stdout.write(
-            f"Scans persisted: {persisted_count}"
+            f"Token scans persisted: {persisted_count}"
         )
         self.stdout.write(
             f"Alerts created: {alert_count}"
         )
         self.stdout.write(
-            f"Failed scans: {failed_count}"
+            f"Failed persistence operations: {failed_count}"
         )
 
         if failed_count:
             self.stdout.write(
                 self.style.WARNING(
-                    "One or more candidates could not be scanned."
+                    "One or more token observations could not be persisted."
                 )
             )
 
     @staticmethod
     def _get_rpc_url(network):
         """
-        Resolve the configured RPC URL without hard-coding credentials.
-
-        HappyWallet's blockchain network object may expose the endpoint
-        through different attributes depending on the current model/service
-        implementation, so inspect the configured public endpoint fields.
+        Resolve the configured Ethereum RPC URL without hard-coding
+        credentials.
         """
 
         for attribute in (
@@ -292,10 +331,10 @@ class Command(BaseCommand):
         ):
             value = getattr(network, attribute, None)
 
-            if value:
-                return str(value).strip()
+            if isinstance(value, str) and value.strip():
+                return value.strip()
 
-        return None
+        return ""
 
     @staticmethod
     def _resolve_block_range(
@@ -305,60 +344,95 @@ class Command(BaseCommand):
         to_block: int | None,
         blocks: int,
     ) -> tuple[int, int]:
-        discovery = EthereumTokenDiscovery(
-            rpc_url=rpc_url,
+        """
+        Resolve a bounded Ethereum block range.
+
+        The scanner deliberately limits live discovery to 100 blocks per
+        invocation. This prevents an accidental large historical RPC scan.
+        """
+
+        if blocks < 1:
+            raise CommandError(
+                "--blocks must be at least 1."
+            )
+
+        if blocks > 100:
+            raise CommandError(
+                "--blocks cannot exceed 100."
+            )
+
+        if (
+            from_block is not None
+            and to_block is not None
+        ):
+            start_block = int(from_block)
+            end_block = int(to_block)
+
+            if start_block < 0:
+                raise CommandError(
+                    "--from-block cannot be negative."
+                )
+
+            if end_block < 0:
+                raise CommandError(
+                    "--to-block cannot be negative."
+                )
+
+            if end_block < start_block:
+                raise CommandError(
+                    "--to-block must be greater than or equal "
+                    "to --from-block."
+                )
+
+            if end_block - start_block + 1 > 100:
+                raise CommandError(
+                    "The explicit block range cannot exceed 100 blocks."
+                )
+
+            return start_block, end_block
+
+        if (
+            from_block is not None
+            or to_block is not None
+        ):
+            raise CommandError(
+                "Provide both --from-block and --to-block, "
+                "or provide neither."
+            )
+
+        try:
+            from web3 import Web3
+
+            web3 = Web3(
+                Web3.HTTPProvider(
+                    rpc_url,
+                    request_kwargs={
+                        "timeout": 10,
+                    },
+                )
+            )
+
+            if not web3.is_connected():
+                raise CommandError(
+                    "Unable to connect to Ethereum Mainnet RPC."
+                )
+
+            latest_block = int(
+                web3.eth.block_number
+            )
+
+        except CommandError:
+            raise
+
+        except Exception as exc:
+            raise CommandError(
+                "Unable to determine the latest Ethereum block."
+            ) from exc
+
+        end_block = latest_block
+        start_block = max(
+            0,
+            end_block - blocks + 1,
         )
 
-        latest = discovery.latest_block()
-
-        if from_block is not None and from_block < 0:
-            raise CommandError(
-                "--from-block must be non-negative."
-            )
-
-        if to_block is not None and to_block < 0:
-            raise CommandError(
-                "--to-block must be non-negative."
-            )
-
-        if from_block is not None and to_block is not None:
-            start = from_block
-            end = to_block
-        elif from_block is not None:
-            start = from_block
-            end = latest
-        elif to_block is not None:
-            end = min(to_block, latest)
-            start = max(0, end - blocks + 1)
-        else:
-            if blocks < 1:
-                raise CommandError(
-                    "--blocks must be at least 1."
-                )
-
-            if blocks > 100:
-                raise CommandError(
-                    "--blocks cannot exceed 100."
-                )
-
-            end = latest
-            start = max(0, end - blocks + 1)
-
-        if end > latest:
-            raise CommandError(
-                f"--to-block cannot exceed the latest Ethereum block "
-                f"({latest})."
-            )
-
-        if start > end:
-            raise CommandError(
-                "The starting block cannot be greater than the ending block."
-            )
-
-        if end - start + 1 > 100:
-            raise CommandError(
-                "The requested discovery range exceeds the scanner's "
-                "100-block safety limit."
-            )
-
-        return start, end
+        return start_block, end_block

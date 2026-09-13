@@ -532,6 +532,12 @@ class TokenRiskAnalyzer:
         Score holder concentration.
 
         Maximum deduction: 25 points.
+
+        Bounded scans are treated as limited evidence. A short event
+        window cannot reliably establish the token's complete holder
+        distribution, so observed holder counts and concentration are
+        not treated as critical risks unless the observation is
+        sufficiently comprehensive.
         """
 
         points = Decimal("0")
@@ -556,9 +562,44 @@ class TokenRiskAnalyzer:
             )
         )
 
+        observation_blocks = self._integer(
+            data.get(
+                "observation_block_count"
+            )
+        )
+
+        limited_observation = (
+            not complete_history
+            and observation_blocks is not None
+            and observation_blocks < 1000
+        )
+
         if holder_count is not None:
 
-            if holder_count < 10:
+            if limited_observation:
+
+                if holder_count < 10:
+                    deduction = Decimal("2")
+
+                    points += deduction
+
+                    findings.append(
+                        RiskFinding(
+                            category="holders",
+                            severity="low",
+                            points=deduction,
+                            title="Limited holder observation",
+                            explanation=(
+                                "Fewer than 10 positive-balance holders "
+                                "were reconstructed, but the observation "
+                                f"covered only {observation_blocks} blocks. "
+                                "This is insufficient evidence to establish "
+                                "the token's complete holder distribution."
+                            ),
+                        )
+                    )
+
+            elif holder_count < 10:
                 deduction = Decimal("15")
 
                 points += deduction
@@ -614,7 +655,51 @@ class TokenRiskAnalyzer:
 
         if top_10 is not None:
 
-            if top_10 >= Decimal("90"):
+            if limited_observation:
+
+                if top_10 >= Decimal("90"):
+                    deduction = Decimal("3")
+
+                    points += deduction
+
+                    findings.append(
+                        RiskFinding(
+                            category="holders",
+                            severity="low",
+                            points=deduction,
+                            title="High observed holder concentration",
+                            explanation=(
+                                "The top 10 reconstructed holders control "
+                                "at least 90% of the observed balance, but "
+                                f"the measurement covers only "
+                                f"{observation_blocks} blocks. The result "
+                                "should not be treated as a complete "
+                                "supply-distribution measurement."
+                            ),
+                        )
+                    )
+
+                elif top_10 >= Decimal("75"):
+                    deduction = Decimal("2")
+
+                    points += deduction
+
+                    findings.append(
+                        RiskFinding(
+                            category="holders",
+                            severity="low",
+                            points=deduction,
+                            title="Elevated observed holder concentration",
+                            explanation=(
+                                "The top 10 reconstructed holders control "
+                                "at least 75% of the observed balance, but "
+                                f"the measurement covers only "
+                                f"{observation_blocks} blocks."
+                            ),
+                        )
+                    )
+
+            elif top_10 >= Decimal("90"):
                 deduction = Decimal("15")
 
                 points += deduction
@@ -668,7 +753,7 @@ class TokenRiskAnalyzer:
                     )
                 )
 
-        if not complete_history:
+        if not complete_history and not limited_observation:
             deduction = Decimal("3")
 
             points += deduction
@@ -710,8 +795,9 @@ class TokenRiskAnalyzer:
 
         Maximum deduction: 20 points.
 
-        Strong demand reduces this category's risk contribution,
-        but it never makes a dangerous contract safe.
+        Short bounded scans are treated as limited market evidence.
+        Absence of observed buys or sells during a short window must
+        not be interpreted as proof that the token has no demand.
         """
 
         points = Decimal("0")
@@ -763,82 +849,143 @@ class TokenRiskAnalyzer:
             )
         )
 
+        observation_blocks = self._integer(
+            data.get(
+                "observation_block_count"
+            )
+        )
+
+        limited_observation = (
+            observation_blocks is not None
+            and observation_blocks < 1000
+        )
+
+        if limited_observation:
+
+            if (
+                buy_count == 0
+                and sell_count == 0
+            ):
+                deduction = Decimal("1")
+
+                points += deduction
+
+                findings.append(
+                    RiskFinding(
+                        category="demand",
+                        severity="low",
+                        points=deduction,
+                        title="Limited market observation",
+                        explanation=(
+                            "No pool-directed buys or sells were observed "
+                            f"during the {observation_blocks}-block scan. "
+                            "This is insufficient evidence to determine "
+                            "the token's overall market demand."
+                        ),
+                    )
+                )
+
+            elif buy_count == 0:
+                deduction = Decimal("2")
+
+                points += deduction
+
+                findings.append(
+                    RiskFinding(
+                        category="demand",
+                        severity="low",
+                        points=deduction,
+                        title="No observed buys in limited window",
+                        explanation=(
+                            "The scan observed sells but no classified "
+                            f"pool-directed buys during the "
+                            f"{observation_blocks}-block observation "
+                            "window. A longer observation period is "
+                            "required before treating this as a strong "
+                            "demand-risk signal."
+                        ),
+                    )
+                )
+
+        else:
+
+            if (
+                buy_count == 0
+                and sell_count == 0
+            ):
+                deduction = Decimal("12")
+
+                points += deduction
+
+                findings.append(
+                    RiskFinding(
+                        category="demand",
+                        severity="high",
+                        points=deduction,
+                        title="No observed market activity",
+                        explanation=(
+                            "No pool-directed buys or sells were observed "
+                            "during the scan."
+                        ),
+                    )
+                )
+
+            elif buy_count == 0:
+                deduction = Decimal("10")
+
+                points += deduction
+
+                findings.append(
+                    RiskFinding(
+                        category="demand",
+                        severity="high",
+                        points=deduction,
+                        title="No observed buys",
+                        explanation=(
+                            "The scan observed sells but no classified "
+                            "pool-directed buys."
+                        ),
+                    )
+                )
+
+            elif unique_buyers < 5:
+                deduction = Decimal("8")
+
+                points += deduction
+
+                findings.append(
+                    RiskFinding(
+                        category="demand",
+                        severity="high",
+                        points=deduction,
+                        title="Very few unique buyers",
+                        explanation=(
+                            "Observed buying activity comes from fewer "
+                            "than five unique buyer addresses."
+                        ),
+                    )
+                )
+
+            elif unique_buyers < 20:
+                deduction = Decimal("4")
+
+                points += deduction
+
+                findings.append(
+                    RiskFinding(
+                        category="demand",
+                        severity="medium",
+                        points=deduction,
+                        title="Limited buyer participation",
+                        explanation=(
+                            "Fewer than 20 unique buyers were observed."
+                        ),
+                    )
+                )
+
         if (
-            buy_count == 0
-            and sell_count == 0
-        ):
-            deduction = Decimal("12")
-
-            points += deduction
-
-            findings.append(
-                RiskFinding(
-                    category="demand",
-                    severity="high",
-                    points=deduction,
-                    title="No observed market activity",
-                    explanation=(
-                        "No pool-directed buys or sells were observed "
-                        "during the scan."
-                    ),
-                )
-            )
-
-        elif buy_count == 0:
-            deduction = Decimal("10")
-
-            points += deduction
-
-            findings.append(
-                RiskFinding(
-                    category="demand",
-                    severity="high",
-                    points=deduction,
-                    title="No observed buys",
-                    explanation=(
-                        "The scan observed sells but no classified "
-                        "pool-directed buys."
-                    ),
-                )
-            )
-
-        elif unique_buyers < 5:
-            deduction = Decimal("8")
-
-            points += deduction
-
-            findings.append(
-                RiskFinding(
-                    category="demand",
-                    severity="high",
-                    points=deduction,
-                    title="Very few unique buyers",
-                    explanation=(
-                        "Observed buying activity comes from fewer "
-                        "than five unique buyer addresses."
-                    ),
-                )
-            )
-
-        elif unique_buyers < 20:
-            deduction = Decimal("4")
-
-            points += deduction
-
-            findings.append(
-                RiskFinding(
-                    category="demand",
-                    severity="medium",
-                    points=deduction,
-                    title="Limited buyer participation",
-                    explanation=(
-                        "Fewer than 20 unique buyers were observed."
-                    ),
-                )
-            )
-
-        if (
-            pressure is not None
+            not limited_observation
+            and pressure is not None
             and pressure <= Decimal("-50")
         ):
             deduction = Decimal("8")
@@ -859,7 +1006,8 @@ class TokenRiskAnalyzer:
             )
 
         elif (
-            pressure is not None
+            not limited_observation
+            and pressure is not None
             and pressure < Decimal("0")
         ):
             deduction = Decimal("4")
@@ -879,7 +1027,8 @@ class TokenRiskAnalyzer:
             )
 
         if (
-            buy_volume is not None
+            not limited_observation
+            and buy_volume is not None
             and sell_volume is not None
             and buy_volume > 0
             and sell_volume > 0
@@ -903,7 +1052,8 @@ class TokenRiskAnalyzer:
             )
 
         if (
-            unique_sellers > 0
+            not limited_observation
+            and unique_sellers > 0
             and unique_buyers > 0
             and unique_sellers > unique_buyers * 3
         ):

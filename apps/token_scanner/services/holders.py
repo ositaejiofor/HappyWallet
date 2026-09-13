@@ -42,7 +42,7 @@ DEAD_ADDRESS = "0x000000000000000000000000000000000000dead"
 
 TRANSFER_EVENT_TOPIC = (
     "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a"
-    "3e6f0f9c"
+    "4df523b3ef"
 )
 
 
@@ -148,7 +148,7 @@ class EVMHolderAnalyzer:
         rpc_url: str,
         *,
         timeout: float = 10.0,
-        log_chunk_size: int = 2_000,
+        log_chunk_size: int = 10,
     ) -> None:
         if not isinstance(rpc_url, str) or not rpc_url.strip():
             raise ValueError(

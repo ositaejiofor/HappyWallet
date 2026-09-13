@@ -1090,7 +1090,6 @@ class EthereumDexDiscoveryResultTests(
             109,
         )
 
-
 class EthereumDexDiscoverySafetyTests(
     SimpleTestCase,
 ):
@@ -1150,26 +1149,95 @@ class EthereumDexDiscoverySafetyTests(
         get_factory_logs,
         ensure_connection,
     ):
+        """
+        Verify that DEX discovery is strictly read-only.
+
+        Web3.py normally exposes transaction-related APIs through
+        web3.eth. Their existence is expected and does not mean the
+        discovery service is capable of trading.
+
+        The actual security boundary is behavioral.
+
+        Discovery must never call:
+
+        - send_raw_transaction()
+        - send_transaction()
+        - sign_transaction()
+
+        If any of these methods are called, the test fails immediately.
+        """
+
         get_factory_logs.return_value = []
 
         discovery = EthereumDexDiscovery(
-            "http://localhost:8545",
-            factories=[self._factory()],
+            "https://example.invalid",
+            factories=(
+                DexFactory(
+                    name="Test DEX",
+                    address=(
+                        "0x1111111111111111111111111111111111111111"
+                    ),
+                ),
+            ),
         )
 
-        discovery.discover(
+        with patch.object(
+            discovery.web3.eth,
+            "send_raw_transaction",
+            side_effect=AssertionError(
+                "DEX discovery attempted transaction submission "
+                "through send_raw_transaction()."
+            ),
+        ) as send_raw_transaction, patch.object(
+            discovery.web3.eth,
+            "send_transaction",
+            side_effect=AssertionError(
+                "DEX discovery attempted transaction submission "
+                "through send_transaction()."
+            ),
+        ) as send_transaction, patch.object(
+            discovery.web3.eth,
+            "sign_transaction",
+            side_effect=AssertionError(
+                "DEX discovery attempted transaction signing "
+                "through sign_transaction()."
+            ),
+        ) as sign_transaction:
+            result = discovery.discover(
+                from_block=100,
+                to_block=109,
+            )
+
+        ensure_connection.assert_called_once()
+
+        get_factory_logs.assert_called_once_with(
+            factory=discovery.factories[0],
             from_block=100,
             to_block=109,
         )
 
-        ensure_connection.assert_called_once()
-
-        web3 = discovery.web3
-
-        self.assertFalse(
-            hasattr(web3.eth, "send_raw_transaction"),
-            "DEX discovery must not expose a transaction submission path.",
+        self.assertEqual(
+            result.pools,
+            (),
         )
+
+        self.assertEqual(
+            result.pools_discovered,
+            0,
+        )
+
+        self.assertEqual(
+            result.logs_examined,
+            0,
+        )
+
+        self.assertTrue(
+            result.complete,
+        )
+
+        send_raw_transaction.assert_not_called()
+        send_transaction.assert_not_called()
+        sign_transaction.assert_not_called()
 
     @staticmethod
     def _factory():
@@ -1177,4 +1245,5 @@ class EthereumDexDiscoverySafetyTests(
             name="Test DEX",
             address="0x" + "11" * 20,
         )
+        
         
