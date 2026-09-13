@@ -1,34 +1,38 @@
 # apps/accounts/forms.py
 
 """
-HappyWallet Account Forms
+HappyWallet account forms.
 
-Authentication and registration forms for the custom
-email-based User model.
+Provides authentication, registration, account-information updates,
+and secure password changes for the custom email-based User model.
 """
 
 from django import forms
 from django.contrib.auth import authenticate
-from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.forms import (
+    AuthenticationForm,
+    PasswordChangeForm,
+    UserCreationForm,
+)
 from django.core.exceptions import ValidationError
 
 from .models import User
 
 
+FORM_CONTROL_CLASS = "form-control"
+
+
 class LoginForm(AuthenticationForm):
     """
     Authenticate a HappyWallet user using email and password.
-
-    Authentication is delegated to Django's configured
-    authentication backend.
     """
 
     username = forms.EmailField(
         label="Email address",
         widget=forms.EmailInput(
             attrs={
-                "class": "form-control",
-                "placeholder": "Enter your email",
+                "class": FORM_CONTROL_CLASS,
+                "placeholder": "Enter your email address",
                 "autocomplete": "email",
                 "autofocus": True,
             }
@@ -40,7 +44,7 @@ class LoginForm(AuthenticationForm):
         strip=False,
         widget=forms.PasswordInput(
             attrs={
-                "class": "form-control",
+                "class": FORM_CONTROL_CLASS,
                 "placeholder": "Enter your password",
                 "autocomplete": "current-password",
             }
@@ -49,11 +53,14 @@ class LoginForm(AuthenticationForm):
 
     def clean(self):
         """
-        Authenticate the supplied email and password.
+        Normalize the email and authenticate the supplied credentials.
         """
-
         email = self.cleaned_data.get("username")
         password = self.cleaned_data.get("password")
+
+        if email:
+            email = email.strip().lower()
+            self.cleaned_data["username"] = email
 
         if email and password:
             self.user_cache = authenticate(
@@ -69,25 +76,24 @@ class LoginForm(AuthenticationForm):
 
         return self.cleaned_data
 
-    def get_user(self):
-        return self.user_cache
 
-
-class RegistrationForm(forms.ModelForm):
+class RegistrationForm(UserCreationForm):
     """
-    Create a new HappyWallet account.
-
-    Passwords are passed to Django's password hashing system
-    and are never stored as plain text.
+    Create a HappyWallet user using Django's password validation
+    and secure password-hashing system.
     """
 
     password1 = forms.CharField(
         label="Password",
         strip=False,
+        help_text=(
+            "Use at least 12 characters and avoid common or easily "
+            "guessed passwords."
+        ),
         widget=forms.PasswordInput(
             attrs={
-                "class": "form-control",
-                "placeholder": "Create a password",
+                "class": FORM_CONTROL_CLASS,
+                "placeholder": "Create a secure password",
                 "autocomplete": "new-password",
             }
         ),
@@ -98,7 +104,7 @@ class RegistrationForm(forms.ModelForm):
         strip=False,
         widget=forms.PasswordInput(
             attrs={
-                "class": "form-control",
+                "class": FORM_CONTROL_CLASS,
                 "placeholder": "Confirm your password",
                 "autocomplete": "new-password",
             }
@@ -107,6 +113,7 @@ class RegistrationForm(forms.ModelForm):
 
     class Meta:
         model = User
+
         fields = [
             "email",
             "username",
@@ -115,14 +122,14 @@ class RegistrationForm(forms.ModelForm):
         widgets = {
             "email": forms.EmailInput(
                 attrs={
-                    "class": "form-control",
-                    "placeholder": "Enter your email",
+                    "class": FORM_CONTROL_CLASS,
+                    "placeholder": "Enter your email address",
                     "autocomplete": "email",
                 }
             ),
             "username": forms.TextInput(
                 attrs={
-                    "class": "form-control",
+                    "class": FORM_CONTROL_CLASS,
                     "placeholder": "Choose a username",
                     "autocomplete": "username",
                 }
@@ -131,9 +138,9 @@ class RegistrationForm(forms.ModelForm):
 
     def clean_email(self):
         """
-        Normalize and validate the email address.
+        Normalize the email address and validate case-insensitive
+        uniqueness.
         """
-
         email = self.cleaned_data["email"].strip().lower()
 
         if User.objects.filter(email__iexact=email).exists():
@@ -145,9 +152,8 @@ class RegistrationForm(forms.ModelForm):
 
     def clean_username(self):
         """
-        Validate username uniqueness.
+        Normalize the username and validate case-insensitive uniqueness.
         """
-
         username = self.cleaned_data["username"].strip()
 
         if not username:
@@ -155,45 +161,137 @@ class RegistrationForm(forms.ModelForm):
                 "Username is required."
             )
 
-        if User.objects.filter(
-            username__iexact=username
-        ).exists():
+        if User.objects.filter(username__iexact=username).exists():
             raise ValidationError(
                 "This username is already in use."
             )
 
         return username
 
-    def clean(self):
+
+class AccountUpdateForm(forms.ModelForm):
+    """
+    Update an existing HappyWallet user's username and email address.
+    """
+
+    class Meta:
+        model = User
+
+        fields = [
+            "username",
+            "email",
+        ]
+
+        widgets = {
+            "username": forms.TextInput(
+                attrs={
+                    "class": FORM_CONTROL_CLASS,
+                    "placeholder": "Enter your username",
+                    "autocomplete": "username",
+                }
+            ),
+            "email": forms.EmailInput(
+                attrs={
+                    "class": FORM_CONTROL_CLASS,
+                    "placeholder": "Enter your email address",
+                    "autocomplete": "email",
+                }
+            ),
+        }
+
+    def clean_email(self):
         """
-        Validate that both password fields match.
+        Normalize the email and ensure another account does not use it.
         """
+        email = self.cleaned_data["email"].strip().lower()
 
-        cleaned_data = super().clean()
+        email_exists = (
+            User.objects
+            .filter(email__iexact=email)
+            .exclude(pk=self.instance.pk)
+            .exists()
+        )
 
-        password1 = cleaned_data.get("password1")
-        password2 = cleaned_data.get("password2")
-
-        if password1 and password2 and password1 != password2:
-            self.add_error(
-                "password2",
-                "The two passwords do not match.",
+        if email_exists:
+            raise ValidationError(
+                "Another account already uses this email address."
             )
 
-        return cleaned_data
+        return email
 
-    def save(self, commit=True):
+    def clean_username(self):
         """
-        Create the user using Django's password hashing.
+        Normalize the username and ensure another account does not use it.
         """
+        username = self.cleaned_data["username"].strip()
 
-        user = super().save(commit=False)
+        if not username:
+            raise ValidationError(
+                "Username is required."
+            )
 
-        password = self.cleaned_data["password1"]
+        username_exists = (
+            User.objects
+            .filter(username__iexact=username)
+            .exclude(pk=self.instance.pk)
+            .exists()
+        )
 
-        user.set_password(password)
+        if username_exists:
+            raise ValidationError(
+                "Another account already uses this username."
+            )
 
-        if commit:
-            user.save()
+        return username
 
-        return user
+
+class AccountPasswordChangeForm(PasswordChangeForm):
+    """
+    Securely change an authenticated HappyWallet user's password.
+
+    Django validates the current password, checks that both new-password
+    fields match, applies configured password validators, and hashes the
+    new password before saving it.
+    """
+
+    old_password = forms.CharField(
+        label="Current password",
+        strip=False,
+        widget=forms.PasswordInput(
+            attrs={
+                "class": FORM_CONTROL_CLASS,
+                "placeholder": "Enter your current password",
+                "autocomplete": "current-password",
+                "autofocus": True,
+            }
+        ),
+    )
+
+    new_password1 = forms.CharField(
+        label="New password",
+        strip=False,
+        help_text=(
+            "Use at least 12 characters and avoid common or easily "
+            "guessed passwords."
+        ),
+        widget=forms.PasswordInput(
+            attrs={
+                "class": FORM_CONTROL_CLASS,
+                "placeholder": "Enter your new password",
+                "autocomplete": "new-password",
+            }
+        ),
+    )
+
+    new_password2 = forms.CharField(
+        label="Confirm new password",
+        strip=False,
+        widget=forms.PasswordInput(
+            attrs={
+                "class": FORM_CONTROL_CLASS,
+                "placeholder": "Confirm your new password",
+                "autocomplete": "new-password",
+            }
+        ),
+    )
+    

@@ -3,34 +3,37 @@
 {% block title %}My Account | HappyWallet{% endblock %}
 
 {% block meta_description %}
-Manage your HappyWallet account, security settings, and wallet preferences.
+View and update your HappyWallet account information and security status.
 {% endblock %}
+
 
 {% block content %}
 <div class="container py-4 py-lg-5">
 
-    <!-- Page header -->
+    <!-- =========================================================
+         PAGE HEADER
+    ========================================================== -->
+
     <header class="mb-4">
-        <div class="row align-items-center g-3">
-            <div class="col">
-                <h1 class="h3 mb-1">My Account</h1>
-                <p class="text-muted mb-0">
-                    Manage your HappyWallet account and account preferences.
-                </p>
-            </div>
-        </div>
+        <h1 class="h3 mb-1">
+            My Account
+        </h1>
+
+        <p class="text-muted mb-0">
+            View and update your HappyWallet account information.
+        </p>
     </header>
 
 
     <div class="row g-4">
 
-        <!-- ================================================================= -->
-        <!-- Account information -->
-        <!-- ================================================================= -->
+        <!-- =====================================================
+             EDIT ACCOUNT INFORMATION
+        ====================================================== -->
 
         <div class="col-12 col-lg-8">
             <section
-                class="card shadow-sm border-0 h-100"
+                class="card border-0 shadow-sm"
                 aria-labelledby="account-information-heading"
             >
                 <div class="card-body p-4">
@@ -39,12 +42,159 @@ Manage your HappyWallet account, security settings, and wallet preferences.
                         id="account-information-heading"
                         class="h5 mb-4"
                     >
-                        Account Information
+                        Edit Account Information
                     </h2>
 
 
-                    <!-- Email -->
-                    <div class="mb-4">
+                    <form
+                        method="post"
+                        action="{% url 'accounts:account' %}"
+                        novalidate
+                    >
+                        {% csrf_token %}
+
+
+                        <!-- General form errors -->
+
+                        {% if form.non_field_errors %}
+                            <div
+                                class="alert alert-danger"
+                                role="alert"
+                            >
+                                {% for error in form.non_field_errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+
+                        <!-- Username -->
+
+                        <div class="mb-3">
+                            <label
+                                for="{{ form.username.id_for_label }}"
+                                class="form-label fw-semibold"
+                            >
+                                Username
+                            </label>
+
+                            {{ form.username }}
+
+                            {% if form.username.help_text %}
+                                <div class="form-text">
+                                    {{ form.username.help_text }}
+                                </div>
+                            {% endif %}
+
+                            {% for error in form.username.errors %}
+                                <div
+                                    class="text-danger small mt-1"
+                                    role="alert"
+                                >
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+                        </div>
+
+
+                        <!-- Email address -->
+
+                        <div class="mb-4">
+                            <label
+                                for="{{ form.email.id_for_label }}"
+                                class="form-label fw-semibold"
+                            >
+                                Email address
+                            </label>
+
+                            {{ form.email }}
+
+                            <div class="form-text">
+                                This email address is used to sign in to
+                                HappyWallet.
+                            </div>
+
+                            {% for error in form.email.errors %}
+                                <div
+                                    class="text-danger small mt-1"
+                                    role="alert"
+                                >
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+                        </div>
+
+
+                        <!-- Form actions -->
+
+                        <div class="d-flex flex-wrap gap-2">
+                            <button
+                                type="submit"
+                                class="btn btn-primary"
+                            >
+                                Save Changes
+                            </button>
+
+                            <a
+                                href="{% url 'accounts:account' %}"
+                                class="btn btn-outline-secondary"
+                            >
+                                Cancel
+                            </a>
+
+                            <a
+                                href="{% url 'accounts:password_change' %}"
+                                class="btn btn-outline-danger"
+                            >
+                                Change Password
+                            </a>
+                        </div>
+
+                    </form>
+
+                </div>
+            </section>
+        </div>
+
+
+        <!-- =====================================================
+             ACCOUNT DETAILS AND ACTIONS
+        ====================================================== -->
+
+        <div class="col-12 col-lg-4">
+
+            <!-- Account details -->
+
+            <section
+                class="card border-0 shadow-sm mb-4"
+                aria-labelledby="account-details-heading"
+            >
+                <div class="card-body p-4">
+
+                    <h2
+                        id="account-details-heading"
+                        class="h5 mb-4"
+                    >
+                        Account Details
+                    </h2>
+
+
+                    <!-- Current username -->
+
+                    <div class="mb-3">
+                        <div class="small text-muted mb-1">
+                            Username
+                        </div>
+
+                        <div class="fw-semibold text-break">
+                            {{ user.username|default:"Not available" }}
+                        </div>
+                    </div>
+
+
+                    <!-- Current email -->
+
+                    <div class="mb-3">
                         <div class="small text-muted mb-1">
                             Email address
                         </div>
@@ -56,56 +206,75 @@ Manage your HappyWallet account, security settings, and wallet preferences.
 
 
                     <!-- Account status -->
-                    <div class="mb-4">
+
+                    <div class="mb-3">
                         <div class="small text-muted mb-1">
                             Account status
                         </div>
 
-                        <div>
-                            {% if user.is_active %}
-                                <span
-                                    class="badge text-bg-success"
-                                    aria-label="Account status: Active"
-                                >
-                                    Active
-                                </span>
-                            {% else %}
-                                <span
-                                    class="badge text-bg-secondary"
-                                    aria-label="Account status: Inactive"
-                                >
-                                    Inactive
-                                </span>
-                            {% endif %}
+                        {% if user.is_active %}
+                            <span
+                                class="badge text-bg-success"
+                                aria-label="Account status: Active"
+                            >
+                                Active
+                            </span>
+                        {% else %}
+                            <span
+                                class="badge text-bg-secondary"
+                                aria-label="Account status: Inactive"
+                            >
+                                Inactive
+                            </span>
+                        {% endif %}
+                    </div>
+
+
+                    <!-- Verification status -->
+
+                    <div class="mb-3">
+                        <div class="small text-muted mb-1">
+                            Verification status
                         </div>
+
+                        {% if user.is_verified %}
+                            <span
+                                class="badge text-bg-success"
+                                aria-label="Verification status: Verified"
+                            >
+                                Verified
+                            </span>
+                        {% else %}
+                            <span
+                                class="badge text-bg-warning"
+                                aria-label="Verification status: Not verified"
+                            >
+                                Not verified
+                            </span>
+                        {% endif %}
                     </div>
 
 
                     <!-- Member since -->
-                    {% if user.date_joined %}
-                        <div class="mb-0">
-                            <div class="small text-muted mb-1">
-                                Member since
-                            </div>
 
-                            <div class="fw-semibold">
-                                {{ user.date_joined|date:"F j, Y" }}
-                            </div>
+                    <div>
+                        <div class="small text-muted mb-1">
+                            Member since
                         </div>
-                    {% endif %}
+
+                        <div class="fw-semibold">
+                            {{ user.created_at|date:"F j, Y" }}
+                        </div>
+                    </div>
 
                 </div>
             </section>
-        </div>
 
 
-        <!-- ================================================================= -->
-        <!-- Account actions -->
-        <!-- ================================================================= -->
+            <!-- Account actions -->
 
-        <div class="col-12 col-lg-4">
             <section
-                class="card shadow-sm border-0 h-100"
+                class="card border-0 shadow-sm"
                 aria-labelledby="account-actions-heading"
             >
                 <div class="card-body p-4">
@@ -118,11 +287,9 @@ Manage your HappyWallet account, security settings, and wallet preferences.
                     </h2>
 
                     <nav
-                        aria-label="Account actions"
                         class="d-grid gap-2"
+                        aria-label="Account actions"
                     >
-
-                        <!-- Dashboard -->
                         <a
                             href="{% url 'dashboard:index' %}"
                             class="btn btn-outline-primary"
@@ -130,8 +297,6 @@ Manage your HappyWallet account, security settings, and wallet preferences.
                             Dashboard
                         </a>
 
-
-                        <!-- Portfolio -->
                         <a
                             href="{% url 'portfolio:index' %}"
                             class="btn btn-outline-secondary"
@@ -139,34 +304,24 @@ Manage your HappyWallet account, security settings, and wallet preferences.
                             Portfolio
                         </a>
 
+                        <a
+                            href="{% url 'transaction:index' %}"
+                            class="btn btn-outline-secondary"
+                        >
+                            Transactions
+                        </a>
 
-                        <!-- Transactions -->
-                        {% url 'transaction:index' as transaction_url %}
-                        {% if transaction_url %}
-                            <a
-                                href="{{ transaction_url }}"
-                                class="btn btn-outline-secondary"
-                            >
-                                Transactions
-                            </a>
-                        {% endif %}
-
-
-                        <!-- Security -->
-                        {% url 'security:index' as security_url %}
-                        {% if security_url %}
-                            <a
-                                href="{{ security_url }}"
-                                class="btn btn-outline-secondary"
-                            >
-                                Security
-                            </a>
-                        {% endif %}
-
+                        <a
+                            href="{% url 'security:home' %}"
+                            class="btn btn-outline-secondary"
+                        >
+                            Security Centre
+                        </a>
                     </nav>
 
                 </div>
             </section>
+
         </div>
 
     </div>
