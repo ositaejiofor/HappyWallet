@@ -8,8 +8,9 @@ OR
 
 python start_wallet.py --settings portable
 
-
 ON DESKTOP
+
+.venv/Scripts/python.exe start_wallet.py
 
 python start_wallet.py
 
