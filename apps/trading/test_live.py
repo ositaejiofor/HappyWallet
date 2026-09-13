@@ -1,448 +1,805 @@
 """
-Tests for the HappyWallet Kraken trading adapter.
+Tests for HappyWallet live trading execution.
+
+These tests NEVER submit real orders.
+
+All exchange-facing components are mocked.
 """
 
-import base64
+import uuid
+
+from decimal import Decimal
 from unittest.mock import Mock
 
-from django.test import SimpleTestCase
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.test import TestCase, override_settings
 
+from apps.market.models import MarketAsset
+
+from .models import (
+    Order,
+    TradingAccount,
+    TradingPair,
+)
 from .services.kraken import (
     KrakenAPIError,
     KrakenAdapter,
     KrakenConfigurationError,
+    KrakenRejectedError,
+    KrakenTransportError,
+)
+from .services.kraken_pairs import (
+    KrakenPairError,
+    KrakenPairInfo,
+)
+from .services.live import (
+    LiveExecutionError,
+    LiveExecutionService,
+    LiveTradingDisabledError,
 )
 
 
-class KrakenAdapterTests(SimpleTestCase):
-    """
-    Unit tests for KrakenAdapter.
+User = get_user_model()
 
-    These tests do not make real requests to Kraken.
-    All HTTP communication is mocked.
+
+class LiveExecutionServiceTests(TestCase):
+    """
+    Test the HappyWallet live execution safety boundary.
+
+    KrakenAdapter and KrakenPairService are mocked so these tests
+    cannot place real exchange orders.
     """
 
     def setUp(self):
-        self.session = Mock()
-
-        self.adapter = KrakenAdapter(
-            api_key="test-api-key",
-            api_secret=base64.b64encode(
-                b"test-secret"
-            ).decode(),
-            timeout=10,
-            live_trading_enabled=False,
-            session=self.session,
+        self.user = User.objects.create_user(
+            username="live-trader",
+            email="live@example.com",
+            password="test-password",
         )
 
-    # ------------------------------------------------------------------
-    # Configuration
-    # ------------------------------------------------------------------
-
-    def test_is_configured_when_credentials_exist(self):
-        self.assertTrue(
-            self.adapter.is_configured
+        self.other_user = User.objects.create_user(
+            username="other-trader",
+            email="other@example.com",
+            password="test-password",
         )
 
-    def test_is_not_configured_without_api_key(self):
-        adapter = KrakenAdapter(
-            api_key="",
-            api_secret="test-secret",
-            session=self.session,
+        self.paper_user = User.objects.create_user(
+            username="paper-trader",
+            email="paper@example.com",
+            password="test-password",
         )
 
-        self.assertFalse(
-            adapter.is_configured
+        self.base_asset = MarketAsset.objects.create(
+            symbol="BTC",
+            name="Bitcoin",
+            coingecko_id="bitcoin",
+            is_active=True,
         )
 
-    def test_is_not_configured_without_api_secret(self):
-        adapter = KrakenAdapter(
-            api_key="test-api-key",
-            api_secret="",
-            session=self.session,
+        self.quote_asset = MarketAsset.objects.create(
+            symbol="USD",
+            name="US Dollar",
+            coingecko_id="usd-test",
+            is_active=True,
         )
 
-        self.assertFalse(
-            adapter.is_configured
+        self.pair = TradingPair.objects.create(
+            base_asset=self.base_asset,
+            quote_asset=self.quote_asset,
+            symbol="BTC/USD",
+            is_active=True,
+            price_precision=2,
+            quantity_precision=8,
+            min_order_quantity=Decimal("0.0001"),
         )
 
-    def test_validate_configuration_requires_api_key(self):
-        adapter = KrakenAdapter(
-            api_key="",
-            api_secret="test-secret",
-            session=self.session,
+        self.account = TradingAccount.objects.create(
+            user=self.user,
+            name="Live Kraken Account",
+            mode=TradingAccount.Mode.LIVE,
+            is_active=True,
         )
 
-        with self.assertRaisesMessage(
-            KrakenConfigurationError,
-            "KRAKEN_API_KEY is not configured.",
-        ):
-            adapter.validate_configuration()
-
-    def test_validate_configuration_requires_api_secret(self):
-        adapter = KrakenAdapter(
-            api_key="test-api-key",
-            api_secret="",
-            session=self.session,
+        self.paper_account = TradingAccount.objects.create(
+            user=self.paper_user,
+            name="Paper Account",
+            mode=TradingAccount.Mode.PAPER,
+            is_active=True,
         )
 
-        with self.assertRaisesMessage(
-            KrakenConfigurationError,
-            "KRAKEN_API_SECRET is not configured.",
-        ):
-            adapter.validate_configuration()
-
-    # ------------------------------------------------------------------
-    # Nonce
-    # ------------------------------------------------------------------
-
-    def test_nonce_is_strictly_increasing(self):
-        first = self.adapter._nonce()
-        second = self.adapter._nonce()
-        third = self.adapter._nonce()
-
-        self.assertLess(
-            int(first),
-            int(second),
+        self.other_account = TradingAccount.objects.create(
+            user=self.other_user,
+            name="Other Live Account",
+            mode=TradingAccount.Mode.LIVE,
+            is_active=True,
         )
 
-        self.assertLess(
-            int(second),
-            int(third),
+        self.order = Order.objects.create(
+            account=self.account,
+            pair=self.pair,
+            client_order_id="live-test-order-1",
+            side=Order.Side.BUY,
+            order_type=Order.OrderType.MARKET,
+            quantity=Decimal("0.010000009"),
+            status=Order.Status.PENDING,
         )
 
-    def test_nonce_remains_increasing_with_same_timestamp(self):
-        self.adapter._last_nonce = 2_000_000_000_000
+        self.adapter = Mock(
+            spec=KrakenAdapter
+        )
+        self.pair_service = Mock()
 
-        first = self.adapter._nonce()
-        second = self.adapter._nonce()
-
-        self.assertEqual(
-            int(first),
-            2_000_000_000_001,
+        self.pair_info = KrakenPairInfo(
+            happywallet_symbol="BTC/USD",
+            kraken_symbol="XBTUSD",
+            base_asset="BTC",
+            quote_asset="USD",
+            price_precision=2,
+            quantity_precision=8,
+            minimum_order_quantity=Decimal("0.0001"),
+            active=True,
         )
 
-        self.assertEqual(
-            int(second),
-            2_000_000_000_002,
+        self.pair_service.resolve.return_value = (
+            self.pair_info
         )
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
+        self.adapter.assert_live_trading_enabled.return_value = None
 
-    def test_get_server_time(self):
-        self.session.get.return_value.ok = True
-        self.session.get.return_value.json.return_value = {
-            "error": [],
-            "result": {
-                "unixtime": 1750000000,
-                "rfc1123": "Sun, 15 Jun 2025 00:00:00 GMT",
+        self.adapter.submit_order.return_value = {
+            "descr": {
+                "order": (
+                    "buy 0.01000000 XBTUSD @ market"
+                ),
             },
-        }
-
-        result = self.adapter.get_server_time()
-
-        self.assertEqual(
-            result["unixtime"],
-            1750000000,
-        )
-
-        self.session.get.assert_called_once()
-
-        call = self.session.get.call_args
-
-        self.assertEqual(
-            call.kwargs["timeout"],
-            10,
-        )
-
-    def test_get_asset_pairs(self):
-        self.session.get.return_value.ok = True
-        self.session.get.return_value.json.return_value = {
-            "error": [],
-            "result": {
-                "XXBTZUSD": {
-                    "altname": "XBTUSD",
-                },
-            },
-        }
-
-        result = self.adapter.get_asset_pairs()
-
-        self.assertIn(
-            "XXBTZUSD",
-            result,
-        )
-
-        call = self.session.get.call_args
-
-        self.assertEqual(
-            call.kwargs["params"],
-            {},
-        )
-
-    def test_get_asset_pairs_with_pair(self):
-        self.session.get.return_value.ok = True
-        self.session.get.return_value.json.return_value = {
-            "error": [],
-            "result": {
-                "XXBTZUSD": {
-                    "altname": "XBTUSD",
-                },
-            },
-        }
-
-        result = self.adapter.get_asset_pairs(
-            pair="XBTUSD",
-        )
-
-        self.assertIn(
-            "XXBTZUSD",
-            result,
-        )
-
-        call = self.session.get.call_args
-
-        self.assertEqual(
-            call.kwargs["params"],
-            {
-                "pair": "XBTUSD",
-            },
-        )
-
-    def test_get_ticker(self):
-        self.session.get.return_value.ok = True
-        self.session.get.return_value.json.return_value = {
-            "error": [],
-            "result": {
-                "XXBTZUSD": {
-                    "a": [
-                        "100000.0",
-                        "1",
-                        "1.000",
-                    ],
-                    "b": [
-                        "99999.0",
-                        "1",
-                        "1.000",
-                    ],
-                    "c": [
-                        "100000.0",
-                        "0.001",
-                    ],
-                },
-            },
-        }
-
-        result = self.adapter.get_ticker(
-            "XBTUSD",
-        )
-
-        self.assertIn(
-            "XXBTZUSD",
-            result,
-        )
-
-        call = self.session.get.call_args
-
-        self.assertEqual(
-            call.kwargs["params"],
-            {
-                "pair": "XBTUSD",
-            },
-        )
-
-    def test_get_ticker_requires_pair(self):
-        with self.assertRaisesMessage(
-            ValueError,
-            "A Kraken trading pair is required.",
-        ):
-            self.adapter.get_ticker("")
-
-    # ------------------------------------------------------------------
-    # Public API errors
-    # ------------------------------------------------------------------
-
-    def test_public_request_handles_http_error(self):
-        self.session.get.return_value.ok = False
-        self.session.get.return_value.status_code = 503
-
-        with self.assertRaisesMessage(
-            KrakenAPIError,
-            "Kraken returned HTTP 503.",
-        ):
-            self.adapter.get_server_time()
-
-    def test_public_request_handles_invalid_json(self):
-        self.session.get.return_value.ok = True
-        self.session.get.return_value.json.side_effect = ValueError
-
-        with self.assertRaisesMessage(
-            KrakenAPIError,
-            "Kraken returned invalid JSON.",
-        ):
-            self.adapter.get_server_time()
-
-    def test_public_request_handles_api_error(self):
-        self.session.get.return_value.ok = True
-        self.session.get.return_value.json.return_value = {
-            "error": [
-                "EGeneral:Temporary lockout",
+            "txid": [
+                "TEST-KRAKEN-TXID",
             ],
-            "result": {},
         }
 
+        self.service = LiveExecutionService(
+            adapter=self.adapter,
+            pair_service=self.pair_service,
+            confirmation_required=True,
+        )
+
+        self.kraken_client_order_id = str(
+            uuid.uuid5(
+                uuid.NAMESPACE_URL,
+                (
+                    "happywallet:kraken:"
+                    f"{self.order.client_order_id}"
+                ),
+            )
+        )
+
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_successful_market_order_becomes_open(self):
+        result = self.service.execute(
+            account=self.account,
+            order=self.order,
+            confirmed=True,
+        )
+
+        self.order.refresh_from_db()
+
+        self.assertEqual(
+            result.pk,
+            self.order.pk,
+        )
+
+        self.assertEqual(
+            self.order.status,
+            Order.Status.OPEN,
+        )
+
+        self.assertEqual(
+            self.order.exchange_client_order_id,
+            self.kraken_client_order_id,
+        )
+
+        self.assertEqual(
+            self.order.exchange_order_id,
+            "TEST-KRAKEN-TXID",
+        )
+
+        self.assertIsNotNone(
+            self.order.submitted_at
+        )
+
+        self.assertEqual(
+            self.order.submission_error,
+            "",
+        )
+
+        self.pair_service.resolve.assert_called_once_with(
+            self.pair
+        )
+
+        self.adapter.submit_order.assert_called_once_with(
+            pair="XBTUSD",
+            side="buy",
+            order_type="market",
+            volume="0.01000000",
+            client_order_id=self.kraken_client_order_id,
+        )
+
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=False
+    )
+    def test_application_live_switch_blocks_submission(self):
         with self.assertRaisesMessage(
-            KrakenAPIError,
-            "Kraken API returned an error: "
-            "EGeneral:Temporary lockout",
+            LiveTradingDisabledError,
+            "Kraken live trading is disabled.",
         ):
-            self.adapter.get_server_time()
+            self.service.execute(
+                account=self.account,
+                order=self.order,
+                confirmed=True,
+            )
 
-    def test_public_request_handles_connection_error(self):
-        import requests
+        self.pair_service.resolve.assert_not_called()
+        self.adapter.submit_order.assert_not_called()
 
-        self.session.get.side_effect = (
-            requests.RequestException(
-                "connection failed"
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_adapter_live_switch_blocks_submission(self):
+        self.adapter.assert_live_trading_enabled.side_effect = (
+            KrakenConfigurationError(
+                "Kraken live trading is disabled."
             )
         )
 
         with self.assertRaisesMessage(
-            KrakenAPIError,
-            "Kraken request failed: connection failed",
+            LiveTradingDisabledError,
+            "Kraken live trading is disabled.",
         ):
-            self.adapter.get_server_time()
+            self.service.execute(
+                account=self.account,
+                order=self.order,
+                confirmed=True,
+            )
 
-    # ------------------------------------------------------------------
-    # Authentication
-    # ------------------------------------------------------------------
+        self.pair_service.resolve.assert_not_called()
+        self.adapter.submit_order.assert_not_called()
 
-    def test_private_request_requires_credentials(self):
-        adapter = KrakenAdapter(
-            api_key="",
-            api_secret="",
-            session=self.session,
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_confirmation_is_required(self):
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Live order confirmation is required.",
+        ):
+            self.service.execute(
+                account=self.account,
+                order=self.order,
+                confirmed=False,
+            )
+
+        self.adapter.assert_live_trading_enabled.assert_not_called()
+        self.pair_service.resolve.assert_not_called()
+        self.adapter.submit_order.assert_not_called()
+
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_paper_account_cannot_execute_live_order(self):
+        paper_order = Order.objects.create(
+            account=self.paper_account,
+            pair=self.pair,
+            client_order_id="paper-live-test",
+            side=Order.Side.BUY,
+            order_type=Order.OrderType.MARKET,
+            quantity=Decimal("0.01"),
+            status=Order.Status.PENDING,
         )
 
         with self.assertRaisesMessage(
-            KrakenConfigurationError,
-            "KRAKEN_API_KEY is not configured.",
+            ValidationError,
+            "Live execution requires a live trading account.",
         ):
-            adapter.get_account_balance()
+            self.service.execute(
+                account=self.paper_account,
+                order=paper_order,
+                confirmed=True,
+            )
 
-        self.session.post.assert_not_called()
+        self.adapter.submit_order.assert_not_called()
 
-    def test_private_request_adds_nonce(self):
-        self.session.post.return_value.ok = True
-        self.session.post.return_value.json.return_value = {
-            "error": [],
-            "result": {
-                "ZUSD": "1000.00",
-            },
-        }
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_order_must_belong_to_account(self):
+        with self.assertRaisesMessage(
+            ValidationError,
+            "This order does not belong to the trading account.",
+        ):
+            self.service.execute(
+                account=self.other_account,
+                order=self.order,
+                confirmed=True,
+            )
 
-        result = self.adapter.get_account_balance()
+        self.adapter.submit_order.assert_not_called()
 
-        self.assertEqual(
-            result["ZUSD"],
-            "1000.00",
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_inactive_account_is_rejected(self):
+        self.account.is_active = False
+        self.account.save(
+            update_fields=["is_active"]
         )
 
-        call = self.session.post.call_args
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Trading account is inactive.",
+        ):
+            self.service.execute(
+                account=self.account,
+                order=self.order,
+                confirmed=True,
+            )
 
-        payload = call.kwargs["data"]
+        self.adapter.submit_order.assert_not_called()
+
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_filled_order_cannot_execute_again(self):
+        self.order.status = Order.Status.FILLED
+        self.order.save(
+            update_fields=["status"]
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "This order cannot be submitted.",
+        ):
+            self.service.execute(
+                account=self.account,
+                order=self.order,
+                confirmed=True,
+            )
+
+        self.adapter.submit_order.assert_not_called()
+
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_quantity_is_rounded_down_to_kraken_precision(self):
+        self.service.execute(
+            account=self.account,
+            order=self.order,
+            confirmed=True,
+        )
+
+        self.adapter.submit_order.assert_called_once_with(
+            pair="XBTUSD",
+            side="buy",
+            order_type="market",
+            volume="0.01000000",
+            client_order_id=self.kraken_client_order_id,
+        )
+
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_quantity_below_kraken_minimum_is_rejected(self):
+        self.order.quantity = Decimal(
+            "0.000099999"
+        )
+        self.order.save(
+            update_fields=["quantity"]
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Minimum order quantity is",
+        ):
+            self.service.execute(
+                account=self.account,
+                order=self.order,
+                confirmed=True,
+            )
+
+        self.adapter.submit_order.assert_not_called()
+
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_limit_order_includes_rounded_price(self):
+        self.order.order_type = (
+            Order.OrderType.LIMIT
+        )
+        self.order.limit_price = Decimal(
+            "100000.129"
+        )
+
+        self.order.save(
+            update_fields=[
+                "order_type",
+                "limit_price",
+            ]
+        )
+
+        self.service.execute(
+            account=self.account,
+            order=self.order,
+            confirmed=True,
+        )
+
+        self.adapter.submit_order.assert_called_once_with(
+            pair="XBTUSD",
+            side="buy",
+            order_type="limit",
+            volume="0.01000000",
+            price="100000.12",
+            client_order_id=self.kraken_client_order_id,
+        )
+
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_pair_resolution_failure_is_wrapped(self):
+        self.pair_service.resolve.side_effect = (
+            KrakenPairError(
+                "pair metadata unavailable"
+            )
+        )
+
+        with self.assertRaisesMessage(
+            LiveExecutionError,
+            "Kraken pair resolution failed",
+        ):
+            self.service.execute(
+                account=self.account,
+                order=self.order,
+                confirmed=True,
+            )
+
+        self.adapter.submit_order.assert_not_called()
+
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_unclassified_kraken_api_failure_becomes_unknown(self):
+        self.adapter.submit_order.side_effect = (
+            KrakenAPIError(
+                "temporary exchange failure"
+            )
+        )
+
+        with self.assertRaisesMessage(
+            LiveExecutionError,
+            "Kraken order submission outcome is unknown.",
+        ):
+            self.service.execute(
+                account=self.account,
+                order=self.order,
+                confirmed=True,
+            )
+
+        self.order.refresh_from_db()
+
+        self.assertEqual(
+            self.order.status,
+            Order.Status.UNKNOWN,
+        )
+
+        self.assertEqual(
+            self.order.exchange_client_order_id,
+            self.kraken_client_order_id,
+        )
+
+        self.assertEqual(
+            self.order.exchange_order_id,
+            "",
+        )
+
+        self.assertIsNotNone(
+            self.order.submitted_at
+        )
 
         self.assertIn(
-            "nonce",
-            payload,
+            "temporary exchange failure",
+            self.order.submission_error,
         )
 
-        self.assertTrue(
-            str(payload["nonce"]).isdigit()
-        )
+        self.adapter.submit_order.assert_called_once()
 
-    def test_private_request_sends_authentication_headers(self):
-        self.session.post.return_value.ok = True
-        self.session.post.return_value.json.return_value = {
-            "error": [],
-            "result": {},
-        }
-
-        self.adapter.get_account_balance()
-
-        call = self.session.post.call_args
-
-        headers = call.kwargs["headers"]
-
-        self.assertEqual(
-            headers["API-Key"],
-            "test-api-key",
-        )
-
-        self.assertTrue(
-            headers["API-Sign"]
-        )
-
-    def test_private_request_handles_http_error(self):
-        self.session.post.return_value.ok = False
-        self.session.post.return_value.status_code = 401
-
-        with self.assertRaisesMessage(
-            KrakenAPIError,
-            "Kraken returned HTTP 401.",
-        ):
-            self.adapter.get_account_balance()
-
-    def test_private_request_handles_invalid_json(self):
-        self.session.post.return_value.ok = True
-        self.session.post.return_value.json.side_effect = ValueError
-
-        with self.assertRaisesMessage(
-            KrakenAPIError,
-            "Kraken returned invalid JSON.",
-        ):
-            self.adapter.get_account_balance()
-
-    # ------------------------------------------------------------------
-    # Live trading safety
-    # ------------------------------------------------------------------
-
-    def test_live_trading_is_disabled_by_default(self):
-        adapter = KrakenAdapter(
-            api_key="test-api-key",
-            api_secret="test-secret",
-            session=self.session,
-            live_trading_enabled=False,
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_transport_failure_becomes_unknown(self):
+        self.adapter.submit_order.side_effect = (
+            KrakenTransportError(
+                "connection timed out"
+            )
         )
 
         with self.assertRaisesMessage(
-            KrakenConfigurationError,
-            "Kraken live trading is disabled.",
+            LiveExecutionError,
+            "Reconciliation is required before retrying.",
         ):
-            adapter.assert_live_trading_enabled()
-
-    def test_live_trading_guard_allows_enabled_adapter(self):
-        adapter = KrakenAdapter(
-            api_key="test-api-key",
-            api_secret="test-secret",
-            session=self.session,
-            live_trading_enabled=True,
-        )
-
-        adapter.assert_live_trading_enabled()
-
-    def test_submit_order_remains_blocked(self):
-        with self.assertRaisesMessage(
-            KrakenConfigurationError,
-            "Kraken live trading is disabled.",
-        ):
-            self.adapter.submit_order(
-                pair="XBTUSD",
-                side="buy",
-                order_type="market",
-                volume="0.01",
+            self.service.execute(
+                account=self.account,
+                order=self.order,
+                confirmed=True,
             )
 
-        self.session.post.assert_not_called()
+        self.order.refresh_from_db()
+
+        self.assertEqual(
+            self.order.status,
+            Order.Status.UNKNOWN,
+        )
+
+        self.assertEqual(
+            self.order.exchange_client_order_id,
+            self.kraken_client_order_id,
+        )
+
+        self.assertEqual(
+            self.order.exchange_order_id,
+            "",
+        )
+
+        self.assertIsNotNone(
+            self.order.submitted_at
+        )
+
+        self.assertIn(
+            "connection timed out",
+            self.order.submission_error,
+        )
+
+        self.adapter.submit_order.assert_called_once()
+
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_explicit_kraken_rejection_becomes_rejected(self):
+        self.adapter.submit_order.side_effect = (
+            KrakenRejectedError(
+                "EOrder:Insufficient funds"
+            )
+        )
+
+        with self.assertRaisesMessage(
+            LiveExecutionError,
+            "Kraken order rejected:",
+        ):
+            self.service.execute(
+                account=self.account,
+                order=self.order,
+                confirmed=True,
+            )
+
+        self.order.refresh_from_db()
+
+        self.assertEqual(
+            self.order.status,
+            Order.Status.REJECTED,
+        )
+
+        self.assertEqual(
+            self.order.exchange_client_order_id,
+            self.kraken_client_order_id,
+        )
+
+        self.assertEqual(
+            self.order.exchange_order_id,
+            "",
+        )
+
+        self.assertIsNotNone(
+            self.order.submitted_at
+        )
+
+        self.assertIn(
+            "Insufficient funds",
+            self.order.submission_error,
+        )
+
+        self.adapter.submit_order.assert_called_once()
+
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_invalid_kraken_response_becomes_unknown(self):
+        self.adapter.submit_order.return_value = None
+
+        with self.assertRaisesMessage(
+            LiveExecutionError,
+            "Kraken returned an invalid order response.",
+        ):
+            self.service.execute(
+                account=self.account,
+                order=self.order,
+                confirmed=True,
+            )
+
+        self.order.refresh_from_db()
+
+        self.assertEqual(
+            self.order.status,
+            Order.Status.UNKNOWN,
+        )
+
+        self.assertEqual(
+            self.order.exchange_client_order_id,
+            self.kraken_client_order_id,
+        )
+
+        self.assertEqual(
+            self.order.exchange_order_id,
+            "",
+        )
+
+        self.assertIsNotNone(
+            self.order.submitted_at
+        )
+
+        self.assertEqual(
+            self.order.submission_error,
+            "Kraken returned an invalid order response.",
+        )
+
+        self.adapter.submit_order.assert_called_once()
+
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_missing_kraken_txid_becomes_unknown(self):
+        self.adapter.submit_order.return_value = {
+            "descr": {
+                "order": "test",
+            },
+            "txid": [],
+        }
+
+        with self.assertRaisesMessage(
+            LiveExecutionError,
+            "Kraken did not return a valid order transaction ID.",
+        ):
+            self.service.execute(
+                account=self.account,
+                order=self.order,
+                confirmed=True,
+            )
+
+        self.order.refresh_from_db()
+
+        self.assertEqual(
+            self.order.status,
+            Order.Status.UNKNOWN,
+        )
+
+        self.assertEqual(
+            self.order.exchange_client_order_id,
+            self.kraken_client_order_id,
+        )
+
+        self.assertEqual(
+            self.order.exchange_order_id,
+            "",
+        )
+
+        self.assertIsNotNone(
+            self.order.submitted_at
+        )
+
+        self.assertEqual(
+            self.order.submission_error,
+            (
+                "Kraken did not return a valid "
+                "order transaction ID."
+            ),
+        )
+
+        self.adapter.submit_order.assert_called_once()
+
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_open_order_cannot_be_submitted_again(self):
+        self.order.status = Order.Status.OPEN
+        self.order.save(
+            update_fields=["status"]
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "This order cannot be submitted.",
+        ):
+            self.service.execute(
+                account=self.account,
+                order=self.order,
+                confirmed=True,
+            )
+
+        self.adapter.submit_order.assert_not_called()
+
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_submitting_order_cannot_be_submitted_again(self):
+        self.order.status = Order.Status.SUBMITTING
+        self.order.exchange_client_order_id = (
+            self.kraken_client_order_id
+        )
+
+        self.order.save(
+            update_fields=[
+                "status",
+                "exchange_client_order_id",
+            ]
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "This order cannot be submitted.",
+        ):
+            self.service.execute(
+                account=self.account,
+                order=self.order,
+                confirmed=True,
+            )
+
+        self.adapter.submit_order.assert_not_called()
+
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_unknown_order_cannot_be_submitted_again(self):
+        self.order.status = Order.Status.UNKNOWN
+        self.order.exchange_client_order_id = (
+            self.kraken_client_order_id
+        )
+
+        self.order.save(
+            update_fields=[
+                "status",
+                "exchange_client_order_id",
+            ]
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "This order cannot be submitted.",
+        ):
+            self.service.execute(
+                account=self.account,
+                order=self.order,
+                confirmed=True,
+            )
+
+        self.adapter.submit_order.assert_not_called()
+
+    @override_settings(
+        KRAKEN_LIVE_TRADING_ENABLED=True
+    )
+    def test_rejected_order_cannot_be_submitted_again(self):
+        self.order.status = Order.Status.REJECTED
+        self.order.save(
+            update_fields=["status"]
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "This order cannot be submitted.",
+        ):
+            self.service.execute(
+                account=self.account,
+                order=self.order,
+                confirmed=True,
+            )
+
+        self.adapter.submit_order.assert_not_called()
+

@@ -2,144 +2,174 @@
 
 {% block title %}Trading Orders | HappyWallet{% endblock %}
 
+{% block meta_description %}
+Review your HappyWallet paper-trading order history and order details.
+{% endblock %}
+
 {% block content %}
 
-<section class="container py-5">
+<style>
+    .orders-page {
+        min-height: 100vh;
+        padding: 2rem 0 4rem;
+    }
 
-    <div class="d-flex justify-content-between
-                align-items-center mb-4">
+    .orders-card {
+        overflow: hidden;
+        border: 0;
+        border-radius: 1rem;
+        box-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, .07);
+    }
 
+    .orders-table th,
+    .orders-table td {
+        padding: 1rem;
+        white-space: nowrap;
+    }
+
+    .orders-table th {
+        color: #6c757d;
+        font-size: .75rem;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+    }
+
+    .order-side,
+    .order-status {
+        display: inline-flex;
+        align-items: center;
+        padding: .35rem .65rem;
+        border-radius: 999px;
+        font-size: .75rem;
+        font-weight: 700;
+    }
+
+    .order-side--buy {
+        background: rgba(25, 135, 84, .1);
+        color: #198754;
+    }
+
+    .order-side--sell {
+        background: rgba(220, 53, 69, .1);
+        color: #dc3545;
+    }
+
+    .order-status {
+        background: #f1f3f5;
+        color: #495057;
+    }
+
+    @media (max-width: 576px) {
+        .orders-page {
+            padding-top: 1rem;
+        }
+
+        .orders-header {
+            align-items: stretch !important;
+            flex-direction: column;
+        }
+
+        .orders-header .btn {
+            width: 100%;
+        }
+    }
+</style>
+
+<section class="container orders-page">
+
+    <header class="orders-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
-            <h1 class="h2 mb-1">
-                Trading Orders
-            </h1>
-
-            <p class="text-muted mb-0">
-                Your trading order history.
-            </p>
+            <h1 class="h2 mb-1">Trading Orders</h1>
+            <p class="text-muted mb-0">Your paper-trading order history.</p>
         </div>
 
-        <a
-            href="{% url 'trading:home' %}"
-            class="btn btn-primary"
-        >
+        <a href="{% url 'trading:home' %}" class="btn btn-primary">
             New Order
         </a>
+    </header>
 
-    </div>
-
-
-    <div class="card border-0 shadow-sm">
-
+    <div class="card orders-card">
         <div class="card-body p-0">
 
             {% if orders %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle orders-table mb-0">
+                        <caption class="visually-hidden">
+                            Paper-trading order history
+                        </caption>
 
-            <div class="table-responsive">
+                        <thead>
+                            <tr>
+                                <th scope="col">Order</th>
+                                <th scope="col">Pair</th>
+                                <th scope="col">Side</th>
+                                <th scope="col">Type</th>
+                                <th scope="col">Quantity</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Date</th>
+                            </tr>
+                        </thead>
 
-                <table class="table table-hover
-                              align-middle mb-0">
+                        <tbody>
+                            {% for order in orders %}
+                                <tr>
+                                    <td>
+                                        <a
+                                            href="{% url 'trading:order_detail' order.id %}"
+                                            class="fw-semibold text-decoration-none"
+                                            aria-label="View order {{ order.id }}"
+                                        >
+                                            #{{ order.id }}
+                                        </a>
+                                    </td>
 
-                    <thead>
-                        <tr>
-                            <th>Order</th>
-                            <th>Pair</th>
-                            <th>Side</th>
-                            <th>Type</th>
-                            <th>Quantity</th>
-                            <th>Status</th>
-                            <th>Date</th>
-                        </tr>
-                    </thead>
+                                    <td class="fw-semibold">
+                                        {{ order.pair.symbol }}
+                                    </td>
 
-                    <tbody>
+                                    <td>
+                                        {% if order.side == "buy" %}
+                                            <span class="order-side order-side--buy">BUY</span>
+                                        {% else %}
+                                            <span class="order-side order-side--sell">SELL</span>
+                                        {% endif %}
+                                    </td>
 
-                    {% for order in orders %}
+                                    <td>{{ order.get_order_type_display }}</td>
+                                    <td>{{ order.quantity }}</td>
 
-                        <tr>
+                                    <td>
+                                        <span class="order-status">
+                                            {{ order.get_status_display }}
+                                        </span>
+                                    </td>
 
-                            <td>
-                                <a
-                                    href="{% url 'trading:order_detail' order.id %}"
-                                    class="fw-semibold text-decoration-none"
-                                >
-                                    #{{ order.id }}
-                                </a>
-                            </td>
-
-                            <td>
-                                {{ order.pair.symbol }}
-                            </td>
-
-                            <td>
-
-                                {% if order.side == "buy" %}
-
-                                <span class="text-success fw-semibold">
-                                    BUY
-                                </span>
-
-                                {% else %}
-
-                                <span class="text-danger fw-semibold">
-                                    SELL
-                                </span>
-
-                                {% endif %}
-
-                            </td>
-
-                            <td>
-                                {{ order.get_order_type_display }}
-                            </td>
-
-                            <td>
-                                {{ order.quantity }}
-                            </td>
-
-                            <td>
-                                {{ order.get_status_display }}
-                            </td>
-
-                            <td>
-                                {{ order.created_at|date:"Y-m-d H:i" }}
-                            </td>
-
-                        </tr>
-
-                    {% endfor %}
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
+                                    <td>
+                                        <time datetime="{{ order.created_at|date:'c' }}">
+                                            {{ order.created_at|date:"Y-m-d H:i" }}
+                                        </time>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             {% else %}
+                <div class="p-5 text-center">
+                    <div class="fs-1 mb-3" aria-hidden="true">📊</div>
+                    <h2 class="h5">No orders yet</h2>
+                    <p class="text-muted mb-4">
+                        Create your first paper-trading order.
+                    </p>
 
-            <div class="p-5 text-center">
-
-                <h2 class="h5">
-                    No orders yet
-                </h2>
-
-                <p class="text-muted">
-                    Create your first paper trading order.
-                </p>
-
-                <a
-                    href="{% url 'trading:home' %}"
-                    class="btn btn-primary"
-                >
-                    Start Trading
-                </a>
-
-            </div>
-
+                    <a href="{% url 'trading:home' %}" class="btn btn-primary">
+                        Start Trading
+                    </a>
+                </div>
             {% endif %}
 
         </div>
-
     </div>
 
 </section>

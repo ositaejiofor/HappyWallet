@@ -142,7 +142,10 @@ trading environment.
                                     {{ network.name }}
                                 </div>
                                 <div class="text-muted small mb-2">
-                                    {{ network.symbol|upper }} · Chain ID {{ network.chain_id }}
+                                    {{ network.symbol|upper }}
+                                    {% if network.chain_id %}
+                                        · Chain ID {{ network.chain_id }}
+                                    {% endif %}
                                 </div>
 
                                 {% if network.supported_assets %}

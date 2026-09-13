@@ -36,7 +36,31 @@ class KrakenConfigurationError(KrakenError):
 
 
 class KrakenAPIError(KrakenError):
-    """Raised when a Kraken API request fails."""
+    """Base class for Kraken API request failures."""
+
+
+class KrakenTransportError(KrakenAPIError):
+    """
+    Raised when Kraken submission outcome may be uncertain.
+
+    Examples:
+        - network failure
+        - timeout
+        - HTTP failure after request transmission
+        - invalid response JSON
+
+    A caller must NOT blindly retry a live order after this error.
+    Reconciliation should be attempted first.
+    """
+
+
+class KrakenRejectedError(KrakenAPIError):
+    """
+    Raised when Kraken explicitly returned an API error.
+
+    This represents a definite exchange rejection rather than an
+    ambiguous transport outcome.
+    """
 
 
 class KrakenAdapter:
@@ -304,12 +328,12 @@ class KrakenAdapter:
                 timeout=self.timeout,
             )
         except requests.RequestException as exc:
-            raise KrakenAPIError(
+            raise KrakenTransportError(
                 f"Kraken request failed: {exc}"
             ) from exc
 
         if not response.ok:
-            raise KrakenAPIError(
+            raise KrakenTransportError(
                 "Kraken returned HTTP "
                 f"{response.status_code}."
             )
@@ -317,14 +341,14 @@ class KrakenAdapter:
         try:
             body = response.json()
         except ValueError as exc:
-            raise KrakenAPIError(
+            raise KrakenTransportError(
                 "Kraken returned invalid JSON."
             ) from exc
 
         errors = body.get("error") or []
 
         if errors:
-            raise KrakenAPIError(
+            raise KrakenRejectedError(
                 "Kraken API returned an error: "
                 + ", ".join(
                     str(error)
@@ -598,36 +622,119 @@ class KrakenAdapter:
 
     def submit_order(
         self,
-        *args,
-        **kwargs,
+        *,
+        pair,
+        side,
+        order_type,
+        volume,
+        price=None,
+        validate_only=False,
+        client_order_id=None,
     ):
         """
-        Reject live order submission until the complete safety boundary
-        has been implemented.
+        Submit a Kraken Spot order.
 
-        Intended execution path:
+        This method is protected by the live-trading guard.
 
-            Order
-                ↓
-            LiveExecutionService
-                ↓
-            validation
-                ↓
-            confirmation
-                ↓
-            risk checks
-                ↓
-            KrakenAdapter
-                ↓
-            Kraken
+        Args:
+            pair:
+                Kraken trading-pair identifier.
 
-        This method intentionally does not submit anything to Kraken.
+            side:
+                "buy" or "sell".
+
+            order_type:
+                "market" or "limit".
+
+            volume:
+                Base-asset quantity.
+
+            price:
+                Required for limit orders.
+
+            validate_only:
+                When True, ask Kraken to validate the order without
+                executing it.
+
+        Returns:
+            dict:
+                Kraken AddOrder result.
+
+        Raises:
+            KrakenConfigurationError:
+                If live trading is disabled or credentials are missing.
+
+            ValueError:
+                If order parameters are invalid.
+
+            KrakenAPIError:
+                If Kraken rejects the request.
         """
 
         self.assert_live_trading_enabled()
 
-        raise KrakenError(
-            "Kraken order submission is not implemented yet. "
-            "Use LiveExecutionService after the live execution "
-            "safety boundary has been completed."
+        pair = str(pair or "").strip()
+        side = str(side or "").strip().lower()
+        order_type = str(order_type or "").strip().lower()
+        volume = str(volume or "").strip()
+
+        if not pair:
+            raise ValueError(
+                "A Kraken trading pair is required."
+            )
+
+        if side not in {"buy", "sell"}:
+            raise ValueError(
+                "Kraken order side must be buy or sell."
+            )
+
+        if order_type not in {"market", "limit"}:
+            raise ValueError(
+                "Kraken order type must be market or limit."
+            )
+
+        if not volume:
+            raise ValueError(
+                "Kraken order volume is required."
+            )
+
+        data = {
+            "pair": pair,
+            "type": side,
+            "ordertype": order_type,
+            "volume": volume,
+        }
+
+        if order_type == "limit":
+            if price is None or not str(price).strip():
+                raise ValueError(
+                    "A price is required for a Kraken limit order."
+                )
+
+            data["price"] = str(price)
+
+        if validate_only:
+            data["validate"] = "true"
+
+        if client_order_id is not None:
+            client_order_id = str(
+                client_order_id
+            ).strip()
+
+            if not client_order_id:
+                raise ValueError(
+                    "Kraken client order ID cannot be empty."
+                )
+
+            if len(client_order_id) > 36:
+                raise ValueError(
+                    "Kraken client order ID is too long."
+                )
+
+            data["cl_ord_id"] = client_order_id
+
+        return self._private_request(
+            "AddOrder",
+            data=data,
         )
+

@@ -223,6 +223,8 @@ class Order(models.Model):
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
+        SUBMITTING = "submitting", "Submitting"
+        UNKNOWN = "unknown", "Unknown"
         OPEN = "open", "Open"
         PARTIALLY_FILLED = "partially_filled", "Partially Filled"
         FILLED = "filled", "Filled"
@@ -297,6 +299,30 @@ class Order(models.Model):
     rejection_reason = models.TextField(
         blank=True,
         default="",
+    )
+
+    exchange_order_id = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        db_index=True,
+    )
+
+    exchange_client_order_id = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        db_index=True,
+    )
+
+    submission_error = models.TextField(
+        blank=True,
+        default="",
+    )
+
+    submitted_at = models.DateTimeField(
+        null=True,
+        blank=True,
     )
 
     created_at = models.DateTimeField(
@@ -403,5 +429,6 @@ class Trade(models.Model):
 
     @property
     def notional_value(self):
-        return self.quantity * self.price
-    
+        quantity = self.quantity or Decimal("0")
+        price = self.price or Decimal("0")
+        return quantity * price

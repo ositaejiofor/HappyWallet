@@ -267,12 +267,88 @@ class KrakenAdapterTests(SimpleTestCase):
             self.adapter.submit_order(
                 pair="BTC/USD",
                 side="buy",
-                quantity="0.01",
+                order_type="market",
+                volume="0.01",
             )
 
         self.session.post.assert_not_called()
 
-    def test_submit_order_still_not_implemented_when_enabled(self):
+    def test_submit_market_order_when_live_trading_enabled(self):
+        adapter = KrakenAdapter(
+            api_key=self.api_key,
+            api_secret=self.api_secret,
+            live_trading_enabled=True,
+            session=self.session,
+        )
+
+        self.session.post.return_value.ok = True
+        self.session.post.return_value.json.return_value = {
+            "error": [],
+            "result": {
+                "descr": {
+                    "order": "buy 0.01000000 BTC/USD @ market"
+                },
+                "txid": [
+                    "TEST-KRAKEN-TXID"
+                ],
+            },
+        }
+
+        result = adapter.submit_order(
+            pair="BTC/USD",
+            side="buy",
+            order_type="market",
+            volume="0.01",
+        )
+
+        self.assertEqual(
+            result["txid"],
+            ["TEST-KRAKEN-TXID"],
+        )
+
+        self.session.post.assert_called_once()
+
+        call = self.session.post.call_args
+
+        self.assertTrue(
+            call.args[0].endswith(
+                "/private/AddOrder"
+            )
+        )
+
+        payload = call.kwargs["data"]
+
+        self.assertEqual(
+            payload["pair"],
+            "BTC/USD",
+        )
+
+        self.assertEqual(
+            payload["type"],
+            "buy",
+        )
+
+        self.assertEqual(
+            payload["ordertype"],
+            "market",
+        )
+
+        self.assertEqual(
+            payload["volume"],
+            "0.01",
+        )
+
+        self.assertNotIn(
+            "price",
+            payload,
+        )
+
+        self.assertIn(
+            "nonce",
+            payload,
+        )
+
+    def test_submit_limit_order_requires_price(self):
         adapter = KrakenAdapter(
             api_key=self.api_key,
             api_secret=self.api_secret,
@@ -281,13 +357,172 @@ class KrakenAdapterTests(SimpleTestCase):
         )
 
         with self.assertRaisesMessage(
-            KrakenError,
-            "Kraken order submission is not implemented yet.",
+            ValueError,
+            "A price is required for a Kraken limit order.",
         ):
             adapter.submit_order(
                 pair="BTC/USD",
                 side="buy",
-                quantity="0.01",
+                order_type="limit",
+                volume="0.01",
+            )
+
+        self.session.post.assert_not_called()
+
+    def test_submit_limit_order_includes_price(self):
+        adapter = KrakenAdapter(
+            api_key=self.api_key,
+            api_secret=self.api_secret,
+            live_trading_enabled=True,
+            session=self.session,
+        )
+
+        self.session.post.return_value.ok = True
+        self.session.post.return_value.json.return_value = {
+            "error": [],
+            "result": {
+                "descr": {
+                    "order": (
+                        "sell 0.01000000 BTC/USD "
+                        "@ limit 100000"
+                    )
+                },
+                "txid": [
+                    "TEST-LIMIT-TXID"
+                ],
+            },
+        }
+
+        result = adapter.submit_order(
+            pair="BTC/USD",
+            side="sell",
+            order_type="limit",
+            volume="0.01",
+            price="100000",
+        )
+
+        self.assertEqual(
+            result["txid"],
+            ["TEST-LIMIT-TXID"],
+        )
+
+        payload = (
+            self.session.post
+            .call_args
+            .kwargs["data"]
+        )
+
+        self.assertEqual(
+            payload["type"],
+            "sell",
+        )
+
+        self.assertEqual(
+            payload["ordertype"],
+            "limit",
+        )
+
+        self.assertEqual(
+            payload["price"],
+            "100000",
+        )
+
+    def test_validate_only_adds_kraken_validate_flag(self):
+        adapter = KrakenAdapter(
+            api_key=self.api_key,
+            api_secret=self.api_secret,
+            live_trading_enabled=True,
+            session=self.session,
+        )
+
+        self.session.post.return_value.ok = True
+        self.session.post.return_value.json.return_value = {
+            "error": [],
+            "result": {
+                "descr": {
+                    "order": "buy 0.01000000 BTC/USD @ market"
+                }
+            },
+        }
+
+        adapter.submit_order(
+            pair="BTC/USD",
+            side="buy",
+            order_type="market",
+            volume="0.01",
+            validate_only=True,
+        )
+
+        payload = (
+            self.session.post
+            .call_args
+            .kwargs["data"]
+        )
+
+        self.assertEqual(
+            payload["validate"],
+            "true",
+        )
+
+    def test_submit_order_rejects_invalid_side(self):
+        adapter = KrakenAdapter(
+            api_key=self.api_key,
+            api_secret=self.api_secret,
+            live_trading_enabled=True,
+            session=self.session,
+        )
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Kraken order side must be buy or sell.",
+        ):
+            adapter.submit_order(
+                pair="BTC/USD",
+                side="invalid",
+                order_type="market",
+                volume="0.01",
+            )
+
+        self.session.post.assert_not_called()
+
+    def test_submit_order_rejects_invalid_order_type(self):
+        adapter = KrakenAdapter(
+            api_key=self.api_key,
+            api_secret=self.api_secret,
+            live_trading_enabled=True,
+            session=self.session,
+        )
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Kraken order type must be market or limit.",
+        ):
+            adapter.submit_order(
+                pair="BTC/USD",
+                side="buy",
+                order_type="invalid",
+                volume="0.01",
+            )
+
+        self.session.post.assert_not_called()
+
+    def test_submit_order_requires_volume(self):
+        adapter = KrakenAdapter(
+            api_key=self.api_key,
+            api_secret=self.api_secret,
+            live_trading_enabled=True,
+            session=self.session,
+        )
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Kraken order volume is required.",
+        ):
+            adapter.submit_order(
+                pair="BTC/USD",
+                side="buy",
+                order_type="market",
+                volume="",
             )
 
         self.session.post.assert_not_called()
@@ -310,3 +545,103 @@ class KrakenAdapterTests(SimpleTestCase):
             "SUPER-SECRET-KEY",
             str(context.exception),
         )
+
+
+class KrakenClientOrderIDTests(SimpleTestCase):
+
+    def setUp(self):
+        self.api_key = "test-api-key"
+
+        self.api_secret = base64.b64encode(
+            b"test-secret"
+        ).decode()
+
+        self.session = Mock()
+
+    def test_submit_order_sends_client_order_id(self):
+        adapter = KrakenAdapter(
+            api_key=self.api_key,
+            api_secret=self.api_secret,
+            live_trading_enabled=True,
+            session=self.session,
+        )
+
+        self.session.post.return_value.ok = True
+        self.session.post.return_value.json.return_value = {
+            "error": [],
+            "result": {
+                "descr": {
+                    "order": "buy 0.01 BTC/USD @ market",
+                },
+                "txid": [
+                    "TEST-TXID",
+                ],
+            },
+        }
+
+        client_order_id = (
+            "12345678-1234-5678-1234-567812345678"
+        )
+
+        adapter.submit_order(
+            pair="BTC/USD",
+            side="buy",
+            order_type="market",
+            volume="0.01",
+            client_order_id=client_order_id,
+        )
+
+        self.session.post.assert_called_once()
+
+        payload = self.session.post.call_args.kwargs[
+            "data"
+        ]
+
+        self.assertEqual(
+            payload["cl_ord_id"],
+            client_order_id,
+        )
+
+    def test_submit_order_rejects_empty_client_order_id(self):
+        adapter = KrakenAdapter(
+            api_key=self.api_key,
+            api_secret=self.api_secret,
+            live_trading_enabled=True,
+            session=self.session,
+        )
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Kraken client order ID cannot be empty.",
+        ):
+            adapter.submit_order(
+                pair="BTC/USD",
+                side="buy",
+                order_type="market",
+                volume="0.01",
+                client_order_id="   ",
+            )
+
+        self.session.post.assert_not_called()
+
+    def test_submit_order_rejects_overlong_client_order_id(self):
+        adapter = KrakenAdapter(
+            api_key=self.api_key,
+            api_secret=self.api_secret,
+            live_trading_enabled=True,
+            session=self.session,
+        )
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Kraken client order ID is too long.",
+        ):
+            adapter.submit_order(
+                pair="BTC/USD",
+                side="buy",
+                order_type="market",
+                volume="0.01",
+                client_order_id="x" * 37,
+            )
+
+        self.session.post.assert_not_called()
