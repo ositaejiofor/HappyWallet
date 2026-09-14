@@ -37,6 +37,7 @@ CHART_RANGES = {
 }
 
 CHART_CACHE_SECONDS = 60
+MARKET_LIVE_CACHE_SECONDS = 60
 
 
 def market_home(request):
@@ -414,7 +415,7 @@ def market_live_data(request):
         cache.set(
             cache_key,
             payload,
-            60,
+            MARKET_LIVE_CACHE_SECONDS,
         )
 
     return JsonResponse(

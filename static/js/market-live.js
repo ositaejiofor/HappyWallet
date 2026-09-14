@@ -25,6 +25,7 @@
     );
 
     let refreshTimer = null;
+    let activeRequest = null;
 
 
     function formatPrice(value) {
@@ -210,7 +211,25 @@
     }
 
 
-    async function refreshMarket() {
+    async function refreshMarket(options = {}) {
+        const force = Boolean(options.force);
+
+        if (document.hidden) {
+            return;
+        }
+
+        if (activeRequest) {
+            if (!force) {
+                return;
+            }
+
+            activeRequest.abort();
+        }
+
+        const controller = new AbortController();
+
+        activeRequest = controller;
+
         if (badge) {
             badge.textContent = "Updating market…";
         }
@@ -224,6 +243,7 @@
                     },
 
                     cache: "no-store",
+                    signal: controller.signal,
                 }
             );
 
@@ -234,6 +254,10 @@
                     data.error ||
                     "Live market request failed."
                 );
+            }
+
+            if (activeRequest !== controller) {
+                return;
             }
 
             const assets = Array.isArray(data.assets)
@@ -256,6 +280,13 @@
                 badge.removeAttribute("title");
             }
         } catch (error) {
+            if (
+                error instanceof DOMException &&
+                error.name === "AbortError"
+            ) {
+                return;
+            }
+
             if (badge) {
                 badge.textContent =
                     "Live data unavailable";
@@ -265,23 +296,70 @@
                         ? error.message
                         : "Market update failed.";
             }
+        } finally {
+            if (activeRequest === controller) {
+                activeRequest = null;
+            }
         }
     }
 
 
-    refreshMarket();
+    function stopRefreshTimer() {
+        if (refreshTimer !== null) {
+            window.clearInterval(
+                refreshTimer
+            );
 
-    refreshTimer = window.setInterval(
-        refreshMarket,
-        60000
+            refreshTimer = null;
+        }
+    }
+
+
+    function startRefreshTimer() {
+        stopRefreshTimer();
+
+        refreshTimer = window.setInterval(
+            refreshMarket,
+            60000
+        );
+    }
+
+
+    function stopActiveRequest() {
+        if (activeRequest) {
+            activeRequest.abort();
+            activeRequest = null;
+        }
+    }
+
+
+    if (!document.hidden) {
+        refreshMarket();
+        startRefreshTimer();
+    }
+
+    document.addEventListener(
+        "visibilitychange",
+        () => {
+            if (document.hidden) {
+                stopRefreshTimer();
+                stopActiveRequest();
+                return;
+            }
+
+            refreshMarket({
+                force: true,
+            });
+
+            startRefreshTimer();
+        }
     );
 
     window.addEventListener(
         "pagehide",
         () => {
-            window.clearInterval(
-                refreshTimer
-            );
+            stopRefreshTimer();
+            stopActiveRequest();
         }
     );
 }());
