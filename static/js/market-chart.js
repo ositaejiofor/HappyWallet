@@ -26,6 +26,7 @@
     let candles = [];
     let resizeTimer = null;
     let refreshTimer = null;
+    let activeRequest = null;
 
     const usd = new Intl.NumberFormat("en-US", {
         style: "currency",
@@ -368,13 +369,37 @@
     }
 
 
-    async function loadChart() {
-        status.textContent =
-            "Loading live candlestick data…";
+    async function loadChart(options = {}) {
+        const force = Boolean(options.force);
+
+        if (document.hidden) {
+            return;
+        }
+
+        if (activeRequest) {
+            if (!force) {
+                return;
+            }
+
+            activeRequest.abort();
+        }
+
+        const controller = new AbortController();
+        const requestedDays = selectedDays;
+
+        activeRequest = controller;
+
+        if (!candles.length) {
+            status.textContent =
+                "Loading live candlestick data…";
+        } else {
+            status.textContent =
+                "Refreshing live candlestick data…";
+        }
 
         try {
             const response = await fetch(
-                `${endpoint}?days=${selectedDays}`,
+                `${endpoint}?days=${requestedDays}`,
                 {
                     method: "GET",
 
@@ -383,6 +408,7 @@
                     },
 
                     cache: "no-store",
+                    signal: controller.signal,
                 }
             );
 
@@ -395,16 +421,24 @@
                 );
             }
 
-            candles = normalizeCandles(
+            const nextCandles = normalizeCandles(
                 data.candles
             );
 
-            if (!candles.length) {
+            if (!nextCandles.length) {
                 throw new Error(
                     "The provider returned no OHLC candles."
                 );
             }
 
+            if (
+                activeRequest !== controller ||
+                requestedDays !== selectedDays
+            ) {
+                return;
+            }
+
+            candles = nextCandles;
             drawChart();
 
             const latestCandle =
@@ -432,16 +466,31 @@
                     usd.format(latestClose)
                 }`;
         } catch (error) {
-            candles = [];
+            if (
+                error instanceof DOMException &&
+                error.name === "AbortError"
+            ) {
+                return;
+            }
 
-            drawMessage(
-                "Candlestick data unavailable."
-            );
+            if (!candles.length) {
+                drawMessage(
+                    "Candlestick data unavailable."
+                );
+            }
 
-            status.textContent =
+            const message =
                 error instanceof Error
                     ? error.message
                     : "Candlestick data unavailable.";
+
+            status.textContent = candles.length
+                ? `Refresh failed · ${message}`
+                : message;
+        } finally {
+            if (activeRequest === controller) {
+                activeRequest = null;
+            }
         }
     }
 
@@ -473,7 +522,9 @@
                     );
                 });
 
-                loadChart();
+                loadChart({
+                    force: true,
+                });
             }
         );
     });
@@ -504,22 +555,63 @@
 
 
     /*
-     * Initial load and one-minute refresh.
+     * Run one controlled refresh loop while the page is visible.
      */
 
-    loadChart();
+    function stopRefreshTimer() {
+        if (refreshTimer !== null) {
+            window.clearInterval(
+                refreshTimer
+            );
 
-    refreshTimer = window.setInterval(
-        loadChart,
-        60000
+            refreshTimer = null;
+        }
+    }
+
+
+    function startRefreshTimer() {
+        stopRefreshTimer();
+
+        refreshTimer = window.setInterval(
+            loadChart,
+            60000
+        );
+    }
+
+
+    function stopActiveRequest() {
+        if (activeRequest) {
+            activeRequest.abort();
+            activeRequest = null;
+        }
+    }
+
+
+    loadChart();
+    startRefreshTimer();
+
+    document.addEventListener(
+        "visibilitychange",
+        () => {
+            if (document.hidden) {
+                stopRefreshTimer();
+                stopActiveRequest();
+                return;
+            }
+
+            loadChart({
+                force: true,
+            });
+
+            startRefreshTimer();
+        }
     );
 
     window.addEventListener(
         "pagehide",
         () => {
-            window.clearInterval(
-                refreshTimer
-            );
+            stopRefreshTimer();
+            stopActiveRequest();
 
             window.clearTimeout(
                 resizeTimer
