@@ -60,9 +60,11 @@ shown.
 6. Read-only reconciliation searches Kraken by deterministic client order ID.
 7. Kraken acceptance becomes `OPEN`; it does not mean the order is filled.
 
-## Important limitation
+## Live cancellation
 
-The web application intentionally refuses to mark a submitted live order as
-cancelled only in its local database. Exchange cancellation must be implemented
-and verified against Kraken before a live cancel button is offered. Until then,
-cancel submitted orders at Kraken and reconcile HappyWallet afterward.
+Submitted `OPEN` or `PARTIALLY_FILLED` orders require a second explicit typed
+confirmation before HappyWallet calls Kraken `CancelOrder`. HappyWallet first
+persists `CANCELLING`. A confirmed response becomes `CANCELLED`; a timeout,
+rejection, malformed response, or zero cancellation count becomes
+`CANCEL_UNKNOWN` and must be reconciled before any retry. Cancellation cannot
+reverse fills that completed before Kraken processed the request.

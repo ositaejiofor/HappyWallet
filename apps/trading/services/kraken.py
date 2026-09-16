@@ -489,12 +489,12 @@ class KrakenAdapter:
                 timeout=self.timeout,
             )
         except requests.RequestException as exc:
-            raise KrakenAPIError(
+            raise KrakenTransportError(
                 f"Kraken request failed: {exc}"
             ) from exc
 
         if not response.ok:
-            raise KrakenAPIError(
+            raise KrakenTransportError(
                 "Kraken returned HTTP "
                 f"{response.status_code}."
             )
@@ -502,14 +502,14 @@ class KrakenAdapter:
         try:
             body = response.json()
         except ValueError as exc:
-            raise KrakenAPIError(
+            raise KrakenTransportError(
                 "Kraken returned invalid JSON."
             ) from exc
 
         errors = body.get("error") or []
 
         if errors:
-            raise KrakenAPIError(
+            raise KrakenRejectedError(
                 "Kraken API returned an error: "
                 + ", ".join(
                     str(error)
@@ -737,4 +737,30 @@ class KrakenAdapter:
             "AddOrder",
             data=data,
         )
+
+    def cancel_order(
+        self,
+        *,
+        exchange_order_id=None,
+        client_order_id=None,
+    ):
+        """Cancel one Kraken Spot order by txid or client order ID."""
+        self.assert_live_trading_enabled()
+
+        exchange_order_id = str(exchange_order_id or "").strip()
+        client_order_id = str(client_order_id or "").strip()
+
+        if bool(exchange_order_id) == bool(client_order_id):
+            raise ValueError(
+                "Provide exactly one Kraken order ID or client order ID."
+            )
+
+        if exchange_order_id:
+            data = {"txid": exchange_order_id}
+        else:
+            if len(client_order_id) > 36:
+                raise ValueError("Kraken client order ID is too long.")
+            data = {"cl_ord_id": client_order_id}
+
+        return self._private_request("CancelOrder", data=data)
 

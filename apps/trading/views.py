@@ -33,6 +33,8 @@ from .models import Order, TradingAccount, TradingPair
 from .services import (
     KrakenOrderReconciliationService,
     KrakenReconciliationError,
+    LiveCancellationError,
+    LiveCancellationService,
     LiveExecutionError,
     LiveExecutionService,
     OrderService,
@@ -41,6 +43,7 @@ from .services import (
 
 
 LIVE_CONFIRMATION_PHRASE = "PLACE LIVE ORDER"
+LIVE_CANCELLATION_PHRASE = "CANCEL LIVE ORDER"
 
 
 def _live_trading_status(account):
@@ -338,6 +341,7 @@ def order_detail(request, order_id):
             "trades": trades,
             "live_status": _live_trading_status(account),
             "live_confirmation_phrase": LIVE_CONFIRMATION_PHRASE,
+            "live_cancellation_phrase": LIVE_CANCELLATION_PHRASE,
         },
     )
 
@@ -498,5 +502,33 @@ def reconcile_live_order(request, order_id):
         messages.error(request, str(exc))
     else:
         messages.success(request, "Kraken order status was reconciled.")
+
+    return redirect("trading:order_detail", order_id=order.id)
+
+
+@login_required
+def cancel_live_order(request, order_id):
+    """Cancel one submitted live order after explicit typed confirmation."""
+    if request.method != "POST":
+        return redirect("trading:order_detail", order_id=order_id)
+
+    account = _get_trading_account(request.user)
+    order = get_object_or_404(Order, pk=order_id, account=account)
+    acknowledged = request.POST.get("acknowledge_live_cancel") == "yes"
+    phrase = request.POST.get("cancellation_phrase", "").strip()
+
+    if not acknowledged or phrase != LIVE_CANCELLATION_PHRASE:
+        messages.error(
+            request,
+            "Live cancellation confirmation was not completed. Nothing was sent.",
+        )
+        return redirect("trading:order_detail", order_id=order.id)
+
+    try:
+        LiveCancellationService().cancel(account=account, order=order)
+    except (ValidationError, LiveCancellationError) as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, "Kraken confirmed the order cancellation.")
 
     return redirect("trading:order_detail", order_id=order.id)

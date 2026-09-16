@@ -54,4 +54,10 @@ urlpatterns = [
         views.reconcile_live_order,
         name="reconcile_live_order",
     ),
+
+    path(
+        "orders/<int:order_id>/cancel-live/",
+        views.cancel_live_order,
+        name="cancel_live_order",
+    ),
 ]

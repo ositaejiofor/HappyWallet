@@ -225,6 +225,8 @@ class Order(models.Model):
         PENDING = "pending", "Pending"
         SUBMITTING = "submitting", "Submitting"
         UNKNOWN = "unknown", "Unknown"
+        CANCELLING = "cancelling", "Cancelling"
+        CANCEL_UNKNOWN = "cancel_unknown", "Cancellation Unknown"
         OPEN = "open", "Open"
         PARTIALLY_FILLED = "partially_filled", "Partially Filled"
         FILLED = "filled", "Filled"

@@ -50,6 +50,8 @@ class KrakenOrderReconciliationService:
     RECONCILABLE_STATUSES = {
         Order.Status.SUBMITTING,
         Order.Status.UNKNOWN,
+        Order.Status.CANCELLING,
+        Order.Status.CANCEL_UNKNOWN,
     }
 
     def __init__(self, *, adapter=None):

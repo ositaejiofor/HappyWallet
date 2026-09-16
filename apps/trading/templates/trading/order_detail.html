@@ -193,6 +193,37 @@ Review HappyWallet {{ account.get_mode_display|lower }} order {{ order.id }} and
                             {% csrf_token %}
                             <button type="submit" class="btn btn-warning w-100">Reconcile with Kraken</button>
                         </form>
+                    {% elif order.status == "open" or order.status == "partially_filled" %}
+                        <div class="alert alert-warning small" role="alert">
+                            Cancellation may race with fills already occurring at Kraken.
+                            A successful cancellation does not reverse completed fills.
+                        </div>
+                        <form method="post" action="{% url 'trading:cancel_live_order' order.id %}">
+                            {% csrf_token %}
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" value="yes"
+                                       name="acknowledge_live_cancel" id="acknowledge-live-cancel" required>
+                                <label class="form-check-label small" for="acknowledge-live-cancel">
+                                    I understand fills may already have occurred.
+                                </label>
+                            </div>
+                            <label for="cancellation-phrase" class="form-label small fw-semibold">
+                                Type {{ live_cancellation_phrase }}
+                            </label>
+                            <input id="cancellation-phrase" name="cancellation_phrase"
+                                   class="form-control mb-3" autocomplete="off" required>
+                            <button type="submit" class="btn btn-outline-danger w-100">
+                                Cancel Live Order at Kraken
+                            </button>
+                        </form>
+                    {% elif order.status == "cancelling" or order.status == "cancel_unknown" %}
+                        <div class="alert alert-warning small" role="alert">
+                            Cancellation outcome is uncertain. Do not send another cancellation.
+                        </div>
+                        <form method="post" action="{% url 'trading:reconcile_live_order' order.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-warning w-100">Reconcile with Kraken</button>
+                        </form>
                     {% elif order.status == "filled" %}
                         <div class="alert alert-success mb-0" role="status">
                             This order has been filled.
