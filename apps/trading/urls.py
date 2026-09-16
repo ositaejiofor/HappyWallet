@@ -42,4 +42,16 @@ urlpatterns = [
         views.execute_paper_order,
         name="execute_paper_order",
     ),
+
+    path(
+        "orders/<int:order_id>/execute-live/",
+        views.execute_live_order,
+        name="execute_live_order",
+    ),
+
+    path(
+        "orders/<int:order_id>/reconcile/",
+        views.reconcile_live_order,
+        name="reconcile_live_order",
+    ),
 ]

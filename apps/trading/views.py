@@ -20,6 +20,7 @@ or blockchain transaction broadcasting.
 
 from decimal import Decimal, InvalidOperation
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -29,7 +30,38 @@ from django.shortcuts import get_object_or_404, redirect, render
 from apps.blockchain.models import Asset, BlockchainNetwork
 
 from .models import Order, TradingAccount, TradingPair
-from .services import OrderService, PaperTradingEngine
+from .services import (
+    KrakenOrderReconciliationService,
+    KrakenReconciliationError,
+    LiveExecutionError,
+    LiveExecutionService,
+    OrderService,
+    PaperTradingEngine,
+)
+
+
+LIVE_CONFIRMATION_PHRASE = "PLACE LIVE ORDER"
+
+
+def _live_trading_status(account):
+    enabled = bool(
+        getattr(settings, "KRAKEN_LIVE_TRADING_ENABLED", False)
+    )
+    configured = bool(
+        getattr(settings, "KRAKEN_API_KEY", "")
+        and getattr(settings, "KRAKEN_API_SECRET", "")
+    )
+    return {
+        "account_is_live": account.mode == TradingAccount.Mode.LIVE,
+        "enabled": enabled,
+        "configured": configured,
+        "ready": (
+            account.mode == TradingAccount.Mode.LIVE
+            and account.is_active
+            and enabled
+            and configured
+        ),
+    }
 
 
 def _get_trading_account(user):
@@ -138,6 +170,7 @@ def trading_home(request):
     Display the main HappyWallet trading dashboard.
     """
     account = _get_trading_account(request.user)
+    live_status = _live_trading_status(account)
 
     return render(
         request,
@@ -149,6 +182,7 @@ def trading_home(request):
             "pairs": _get_active_trading_pairs(),
             "orders": _get_recent_orders(account),
             "balances": _get_trading_balances(account),
+            "live_status": live_status,
         },
     )
 
@@ -302,6 +336,8 @@ def order_detail(request, order_id):
             "account": account,
             "order": order,
             "trades": trades,
+            "live_status": _live_trading_status(account),
+            "live_confirmation_phrase": LIVE_CONFIRMATION_PHRASE,
         },
     )
 
@@ -377,6 +413,10 @@ def execute_paper_order(request, order_id):
         account=account,
     )
 
+    if account.mode != TradingAccount.Mode.PAPER:
+        messages.error(request, "Live orders cannot use the paper engine.")
+        return redirect("trading:order_detail", order_id=order.id)
+
     try:
         trade = PaperTradingEngine.execute(order)
 
@@ -401,3 +441,62 @@ def execute_paper_order(request, order_id):
         "trading:order_detail",
         order_id=order.id,
     )
+
+
+@login_required
+def execute_live_order(request, order_id):
+    """Submit one explicitly confirmed live order through the guarded boundary."""
+    if request.method != "POST":
+        return redirect("trading:order_detail", order_id=order_id)
+
+    account = _get_trading_account(request.user)
+    order = get_object_or_404(Order, pk=order_id, account=account)
+
+    acknowledged = request.POST.get("acknowledge_live_risk") == "yes"
+    phrase = request.POST.get("confirmation_phrase", "").strip()
+
+    if not acknowledged or phrase != LIVE_CONFIRMATION_PHRASE:
+        messages.error(
+            request,
+            "Live order confirmation was not completed. Nothing was submitted.",
+        )
+        return redirect("trading:order_detail", order_id=order.id)
+
+    try:
+        submitted = LiveExecutionService().execute(
+            account=account,
+            order=order,
+            confirmed=True,
+        )
+    except (ValidationError, LiveExecutionError) as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(
+            request,
+            "Kraken accepted the order for processing. Acceptance is not a fill.",
+        )
+        order = submitted
+
+    return redirect("trading:order_detail", order_id=order.id)
+
+
+@login_required
+def reconcile_live_order(request, order_id):
+    """Perform read-only Kraken reconciliation for an uncertain live order."""
+    if request.method != "POST":
+        return redirect("trading:order_detail", order_id=order_id)
+
+    account = _get_trading_account(request.user)
+    order = get_object_or_404(Order, pk=order_id, account=account)
+
+    try:
+        KrakenOrderReconciliationService().reconcile(
+            account=account,
+            order=order,
+        )
+    except (ValidationError, KrakenReconciliationError) as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, "Kraken order status was reconciled.")
+
+    return redirect("trading:order_detail", order_id=order.id)

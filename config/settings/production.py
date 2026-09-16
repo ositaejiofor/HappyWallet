@@ -70,6 +70,22 @@ if not SECRET_KEY:
 
 DEBUG = False
 
+# Real exchange orders remain disabled unless explicitly enabled in the
+# production environment. Never hard-code Kraken credentials in source.
+KRAKEN_LIVE_TRADING_ENABLED = env_bool(
+    "KRAKEN_LIVE_TRADING_ENABLED",
+    False,
+)
+
+if KRAKEN_LIVE_TRADING_ENABLED and not (
+    KRAKEN_API_KEY  # noqa: F405
+    and KRAKEN_API_SECRET  # noqa: F405
+):
+    raise RuntimeError(
+        "Kraken live trading requires KRAKEN_API_KEY and "
+        "KRAKEN_API_SECRET. Keep the gate disabled until both are set."
+    )
+
 ALLOWED_HOSTS = env_list(
     "DJANGO_ALLOWED_HOSTS",
 )

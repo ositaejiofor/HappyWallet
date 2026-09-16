@@ -3,7 +3,7 @@
 {% block title %}Order {{ order.id }} | Trading | HappyWallet{% endblock %}
 
 {% block meta_description %}
-Review HappyWallet paper-trading order {{ order.id }} and its executions.
+Review HappyWallet {{ account.get_mode_display|lower }} order {{ order.id }} and its executions.
 {% endblock %}
 
 {% block content %}
@@ -136,19 +136,62 @@ Review HappyWallet paper-trading order {{ order.id }} and its executions.
                 <div class="card-body p-4">
                     <h2 class="h5 mb-3">Order Actions</h2>
 
-                    {% if order.status == "pending" or order.status == "open" %}
-                        <form method="post" action="{% url 'trading:execute_paper_order' order.id %}" class="mb-3">
+                    {% if account.mode == "paper" %}
+                        {% if order.status == "pending" or order.status == "open" %}
+                            <form method="post" action="{% url 'trading:execute_paper_order' order.id %}" class="mb-3">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-success w-100">
+                                    Execute Paper Trade
+                                </button>
+                            </form>
+                            <form method="post" action="{% url 'trading:cancel_order' order.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-danger w-100">Cancel Order</button>
+                            </form>
+                        {% else %}
+                            <div class="alert alert-secondary mb-0" role="status">No actions are available for this order.</div>
+                        {% endif %}
+                    {% elif order.status == "pending" %}
+                        {% if live_status.ready %}
+                            <div class="alert alert-danger small" role="alert">
+                                This action can place a real Kraken order using real funds.
+                                Verify every order field before continuing.
+                            </div>
+                            <form method="post" action="{% url 'trading:execute_live_order' order.id %}">
+                                {% csrf_token %}
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" value="yes"
+                                           name="acknowledge_live_risk" id="acknowledge-live-risk" required>
+                                    <label class="form-check-label small" for="acknowledge-live-risk">
+                                        I understand this submits a real order.
+                                    </label>
+                                </div>
+                                <label for="confirmation-phrase" class="form-label small fw-semibold">
+                                    Type {{ live_confirmation_phrase }}
+                                </label>
+                                <input id="confirmation-phrase" name="confirmation_phrase"
+                                       class="form-control mb-3" autocomplete="off" required>
+                                <button type="submit" class="btn btn-danger w-100">
+                                    Submit Live Order to Kraken
+                                </button>
+                            </form>
+                            <form method="post" action="{% url 'trading:cancel_order' order.id %}" class="mt-3">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-secondary w-100">Cancel Pending Order</button>
+                            </form>
+                        {% else %}
+                            <div class="alert alert-warning mb-0" role="status">
+                                Live execution is locked. The live account, server gate and
+                                Kraken trade-only credentials must all be configured.
+                            </div>
+                        {% endif %}
+                    {% elif order.status == "unknown" or order.status == "submitting" %}
+                        <div class="alert alert-warning small" role="alert">
+                            Submission outcome is uncertain. Do not submit another order.
+                        </div>
+                        <form method="post" action="{% url 'trading:reconcile_live_order' order.id %}">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-success w-100">
-                                Execute Paper Trade
-                            </button>
-                        </form>
-
-                        <form method="post" action="{% url 'trading:cancel_order' order.id %}">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-outline-danger w-100">
-                                Cancel Order
-                            </button>
+                            <button type="submit" class="btn btn-warning w-100">Reconcile with Kraken</button>
                         </form>
                     {% elif order.status == "filled" %}
                         <div class="alert alert-success mb-0" role="status">
@@ -169,10 +212,17 @@ Review HappyWallet paper-trading order {{ order.id }} and its executions.
             <div class="card order-detail-card mt-4">
                 <div class="card-body p-4">
                     <h2 class="h6">Safety Boundary</h2>
-                    <p class="small text-muted mb-0">
-                        This is a paper-trading execution. It does not access private keys,
-                        sign blockchain transactions, or broadcast transactions to a network.
-                    </p>
+                    {% if account.mode == "live" %}
+                        <p class="small text-muted mb-0">
+                            Use a Kraken trade-only API key with withdrawals disabled.
+                            HappyWallet never needs a wallet seed phrase or private key for exchange trading.
+                        </p>
+                    {% else %}
+                        <p class="small text-muted mb-0">
+                            This paper execution does not access private keys, sign blockchain
+                            transactions, or broadcast transactions to a network.
+                        </p>
+                    {% endif %}
                 </div>
             </div>
         </aside>

@@ -193,12 +193,16 @@ trading environment.
                             </h2>
 
                             <p class="text-muted small mb-0">
-                                Create an order for paper execution.
+                                {% if account.mode == "live" %}
+                                    Create a pending order for explicit Kraken confirmation.
+                                {% else %}
+                                    Create an order for paper execution.
+                                {% endif %}
                             </p>
                         </div>
 
                         <span class="badge text-bg-light">
-                            Paper
+                            {{ account.get_mode_display }}
                         </span>
 
                     </div>

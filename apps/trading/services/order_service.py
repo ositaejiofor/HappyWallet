@@ -1,6 +1,7 @@
 import uuid
 from decimal import Decimal
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
@@ -38,10 +39,26 @@ class OrderService:
                 "Trading account is inactive."
             )
 
-        if account.mode != TradingAccount.Mode.PAPER:
-            raise ValidationError(
-                "Live trading is not enabled."
-            )
+        if account.mode == TradingAccount.Mode.LIVE:
+            if not getattr(
+                settings,
+                "KRAKEN_LIVE_TRADING_ENABLED",
+                False,
+            ):
+                raise ValidationError(
+                    "Live trading is not enabled."
+                )
+
+            if not (
+                getattr(settings, "KRAKEN_API_KEY", "")
+                and getattr(settings, "KRAKEN_API_SECRET", "")
+            ):
+                raise ValidationError(
+                    "Kraken live-trading credentials are not configured."
+                )
+
+        elif account.mode != TradingAccount.Mode.PAPER:
+            raise ValidationError("Unsupported trading account mode.")
 
         validate_order(
             pair=pair,
@@ -89,6 +106,15 @@ class OrderService:
         ):
             raise ValidationError(
                 "This order cannot be cancelled."
+            )
+
+        if (
+            account.mode == TradingAccount.Mode.LIVE
+            and order.status != Order.Status.PENDING
+        ):
+            raise ValidationError(
+                "Submitted live orders must be cancelled at Kraken "
+                "and reconciled before their local status changes."
             )
 
         order.status = Order.Status.CANCELLED
