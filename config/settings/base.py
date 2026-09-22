@@ -727,6 +727,14 @@ BITCOIN_RPC_URL = env_str(
 
 TRON_RPC_URL = env_str(
     "TRON_RPC_URL",
+    "https://api.trongrid.io",
+).rstrip("/")
+
+# TronGrid uses this key for identification, quotas, and rate limiting.
+# It is not a wallet private key and cannot sign blockchain transactions.
+# Services must send it only in the TRON-PRO-API-KEY request header.
+TRON_API_KEY = env_str(
+    "TRON_API_KEY",
 )
 
 
@@ -768,6 +776,15 @@ BLOCKCHAIN_RPC_TIMEOUT = env_int(
 # configuration value of its own.
 ETHEREUM_RPC_TIMEOUT = env_int(
     "ETHEREUM_RPC_TIMEOUT",
+    10,
+    minimum=1,
+    maximum=30,
+)
+
+
+# Bounded timeout for TronGrid/FullNode HTTP requests.
+TRON_RPC_TIMEOUT = env_int(
+    "TRON_RPC_TIMEOUT",
     10,
     minimum=1,
     maximum=30,
