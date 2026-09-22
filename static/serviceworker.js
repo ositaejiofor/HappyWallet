@@ -1,127 +1,143 @@
+"use strict";
+
 /*
- * HappyWallet Progressive Web App Service Worker
+ * HappyWallet production service worker.
  *
- * Security model:
- * - Do NOT cache authenticated application pages.
- * - Do NOT cache API responses.
- * - Do NOT cache wallet/private-key/seed/transaction data.
- * - Cache only explicitly approved public/static resources.
+ * Security policy:
+ * - Cache only the public offline shell and static presentation assets.
+ * - Never cache authenticated pages.
+ * - Never cache API, wallet, account, transaction or trading responses.
+ * - Never cache private keys, recovery phrases or blockchain data.
  */
 
-const CACHE_NAME = "happywallet-static-v2";
+const CACHE_VERSION = "v5";
+const OFFLINE_CACHE =
+    `happywallet-offline-${CACHE_VERSION}`;
 
-const STATIC_ASSETS = [
-    "/offline/",
+const OFFLINE_URL = "/offline/";
+
+const OFFLINE_ASSETS = [
+    OFFLINE_URL,
+    "/static/css/offline.css",
+    "/static/js/offline.js",
+    "/static/images/logo/logo.png",
 ];
 
 
-/*
- * Installation
- *
- * Cache only the public offline page.
- */
-self.addEventListener("install", (event) => {
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then((cache) => cache.addAll(STATIC_ASSETS))
-            .then(() => self.skipWaiting())
-    );
-});
+/* Installation */
 
-
-/*
- * Activation
- *
- * Remove old HappyWallet PWA caches.
- */
-self.addEventListener("activate", (event) => {
-    event.waitUntil(
-        caches.keys()
-            .then((cacheNames) =>
-                Promise.all(
-                    cacheNames
-                        .filter((cacheName) =>
-                            cacheName.startsWith("happywallet-") &&
-                            cacheName !== CACHE_NAME
-                        )
-                        .map((cacheName) => caches.delete(cacheName))
-                )
-            )
-            .then(() => self.clients.claim())
-    );
-});
-
-
-/*
- * Fetch handling
- *
- * IMPORTANT:
- * We deliberately do not cache normal application pages,
- * authenticated responses, API responses, wallet data, or
- * blockchain data.
- */
-self.addEventListener("fetch", (event) => {
-    const request = event.request;
-
-    if (request.method !== "GET") {
-        return;
-    }
-
-    const url = new URL(request.url);
-
-    /*
-     * Only handle requests belonging to HappyWallet itself.
-     */
-    if (url.origin !== self.location.origin) {
-        return;
-    }
-
-    /*
-     * Static assets:
-     * network first, then previously cached asset if available.
-     *
-     * This section is intentionally limited to /static/.
-     */
-    if (url.pathname.startsWith("/static/")) {
-        event.respondWith(
-            fetch(request)
-                .then((response) => {
-                    if (response.ok) {
-                        const responseClone = response.clone();
-
-                        caches.open(CACHE_NAME)
-                            .then((cache) => {
-                                cache.put(request, responseClone);
-                            });
-                    }
-
-                    return response;
+self.addEventListener(
+    "install",
+    function (event) {
+        event.waitUntil(
+            caches
+                .open(OFFLINE_CACHE)
+                .then(function (cache) {
+                    return cache.addAll(
+                        OFFLINE_ASSETS
+                    );
                 })
-                .catch(() => caches.match(request))
+                .then(function () {
+                    return self.skipWaiting();
+                })
         );
-
-        return;
     }
+);
 
-    /*
-     * Navigation requests:
-     *
-     * Never cache authenticated pages.
-     *
-     * If the network is unavailable, show the public offline page.
-     */
-    if (request.mode === "navigate") {
-        event.respondWith(
-            fetch(request)
-                .catch(() => caches.match("/offline/"))
+
+/* Activation */
+
+self.addEventListener(
+    "activate",
+    function (event) {
+        event.waitUntil(
+            caches
+                .keys()
+                .then(function (cacheNames) {
+                    return Promise.all(
+                        cacheNames.map(
+                            function (cacheName) {
+                                const isHappyWalletCache =
+                                    cacheName.startsWith(
+                                        "happywallet-"
+                                    );
+
+                                if (
+                                    isHappyWalletCache &&
+                                    cacheName !== OFFLINE_CACHE
+                                ) {
+                                    return caches.delete(
+                                        cacheName
+                                    );
+                                }
+
+                                return Promise.resolve(
+                                    false
+                                );
+                            }
+                        )
+                    );
+                })
+                .then(function () {
+                    return self.clients.claim();
+                })
         );
-
-        return;
     }
+);
 
-    /*
-     * Everything else:
-     *
-     * Pass directly through to the network.
-     */
-});
+
+/* Requests */
+
+self.addEventListener(
+    "fetch",
+    function (event) {
+        const request = event.request;
+
+        if (request.method !== "GET") {
+            return;
+        }
+
+        const url = new URL(request.url);
+
+        if (url.origin !== self.location.origin) {
+            return;
+        }
+
+        /*
+         * Navigation requests always use the network.
+         * The offline page is returned only when the network fails.
+         * Normal application pages are never written to Cache Storage.
+         */
+        if (request.mode === "navigate") {
+            event.respondWith(
+                fetch(request).catch(
+                    function () {
+                        return caches.match(
+                            OFFLINE_URL
+                        );
+                    }
+                )
+            );
+
+            return;
+        }
+
+        /*
+         * Only explicitly approved offline assets may be read
+         * from the offline cache.
+         */
+        if (OFFLINE_ASSETS.includes(url.pathname)) {
+            event.respondWith(
+                caches
+                    .match(request)
+                    .then(function (cachedResponse) {
+                        if (cachedResponse) {
+                            return cachedResponse;
+                        }
+
+                        return fetch(request);
+                    })
+            );
+        }
+    }
+);

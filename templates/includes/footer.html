@@ -4,21 +4,26 @@
      GLOBAL SITE FOOTER
 ============================================================== -->
 
-<footer class="site-footer" role="contentinfo">
-
+<footer
+    class="site-footer"
+    role="contentinfo"
+>
     <div class="container">
 
         <div class="site-footer__grid">
 
-            <!-- Brand -->
+            <!-- =================================================
+                 BRAND
+            ================================================== -->
+
             <section
                 class="site-footer__brand"
                 aria-labelledby="footer-brand-heading"
             >
                 <a
-                    href="/"
+                    href="{% url 'dashboard:index' %}"
                     class="site-footer__brand-link"
-                    aria-label="HappyWallet dashboard"
+                    aria-label="Go to HappyWallet dashboard"
                 >
                     <img
                         src="{% static 'images/logo/logo.png' %}"
@@ -40,14 +45,20 @@
                 </p>
 
                 <p class="site-footer__security-note">
-                    <span aria-hidden="true">🔒</span>
-                    Your private keys and recovery phrases should always
-                    remain under your control.
+                    <span aria-hidden="true">🔐</span>
+
+                    <span>
+                        Your private keys and recovery phrases should
+                        always remain under your control.
+                    </span>
                 </p>
             </section>
 
 
-            <!-- Platform links -->
+            <!-- =================================================
+                 PLATFORM LINKS
+            ================================================== -->
+
             <nav
                 class="site-footer__section"
                 aria-labelledby="footer-platform-heading"
@@ -61,25 +72,36 @@
 
                 <ul class="site-footer__links">
                     <li>
-                        <a href="/">Dashboard</a>
+                        <a href="{% url 'dashboard:index' %}">
+                            Dashboard
+                        </a>
                     </li>
 
                     <li>
-                        <a href="/wallet/">Wallet</a>
+                        <a href="{% url 'wallet:home' %}">
+                            Wallet
+                        </a>
                     </li>
 
                     <li>
-                        <a href="/portfolio/">Portfolio</a>
+                        <a href="{% url 'portfolio:index' %}">
+                            Portfolio
+                        </a>
                     </li>
 
                     <li>
-                        <a href="/transactions/">Transactions</a>
+                        <a href="{% url 'transaction:index' %}">
+                            Transactions
+                        </a>
                     </li>
                 </ul>
             </nav>
 
 
-            <!-- Market links -->
+            <!-- =================================================
+                 MARKET LINKS
+            ================================================== -->
+
             <nav
                 class="site-footer__section"
                 aria-labelledby="footer-market-heading"
@@ -93,21 +115,30 @@
 
                 <ul class="site-footer__links">
                     <li>
-                        <a href="/market/">Market Data</a>
+                        <a href="{% url 'market:home' %}">
+                            Market Data
+                        </a>
                     </li>
 
                     <li>
-                        <a href="/trading/">Trading</a>
+                        <a href="{% url 'trading:home' %}">
+                            Trading
+                        </a>
                     </li>
 
                     <li>
-                        <a href="/token-scanner/">Token Scanner</a>
+                        <a href="{% url 'token_scanner:index' %}">
+                            Token Scanner
+                        </a>
                     </li>
                 </ul>
             </nav>
 
 
-            <!-- Security links -->
+            <!-- =================================================
+                 SECURITY LINKS
+            ================================================== -->
+
             <nav
                 class="site-footer__section"
                 aria-labelledby="footer-security-heading"
@@ -121,15 +152,24 @@
 
                 <ul class="site-footer__links">
                     <li>
-                        <a href="/security/">Security Centre</a>
+                        <a href="{% url 'security:home' %}">
+                            Security Centre
+                        </a>
                     </li>
 
                     <li>
-                        <a href="/accounts/">Account</a>
+                        <a href="{% url 'accounts:account' %}">
+                            Account
+                        </a>
                     </li>
 
                     <li>
-                        <a href="/offline/">Offline Access</a>
+                        <a
+                            href="/offline/"
+                            class="site-footer__link"
+                        >
+                            Offline Access
+                        </a>
                     </li>
                 </ul>
             </nav>
@@ -137,12 +177,15 @@
         </div>
 
 
-        <!-- Bottom bar -->
+        <!-- =====================================================
+             BOTTOM BAR
+        ====================================================== -->
+
         <div class="site-footer__bottom">
 
             <p class="site-footer__copyright">
                 &copy; {% now "Y" %}
-                <strong>HappyWallet</strong>.
+                <strong>HappyWallet.</strong>
                 All rights reserved.
             </p>
 
@@ -154,5 +197,4 @@
         </div>
 
     </div>
-
 </footer>

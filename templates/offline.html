@@ -1,0 +1,714 @@
+{% load static %}
+
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <meta
+        name="theme-color"
+        content="#0f172a"
+    >
+
+    <meta
+        name="robots"
+        content="noindex, nofollow"
+    >
+
+    <title>Offline | HappyWallet</title>
+
+    <link
+        rel="icon"
+        href="{% static 'images/favicon.ico' %}"
+        type="image/x-icon"
+    >
+
+    <style>
+        /* =========================================================
+           OFFLINE PAGE RESET
+        ========================================================== */
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        html {
+            min-height: 100%;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+
+            display: grid;
+            place-items: center;
+
+            padding: 1.5rem;
+
+            color: #e2e8f0;
+
+            background:
+                radial-gradient(
+                    circle at 15% 10%,
+                    rgba(37, 99, 235, 0.22),
+                    transparent 32rem
+                ),
+                radial-gradient(
+                    circle at 90% 85%,
+                    rgba(14, 165, 233, 0.13),
+                    transparent 28rem
+                ),
+                linear-gradient(
+                    145deg,
+                    #111827 0%,
+                    #0f172a 48%,
+                    #020617 100%
+                );
+
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+
+            line-height: 1.5;
+
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+        }
+
+        button,
+        a {
+            font: inherit;
+        }
+
+
+        /* =========================================================
+           PAGE LAYOUT
+        ========================================================== */
+
+        .offline-shell {
+            width: min(100%, 720px);
+        }
+
+        .offline-card {
+            overflow: hidden;
+
+            background: rgba(15, 23, 42, 0.88);
+
+            border:
+                1px solid rgba(148, 163, 184, 0.18);
+
+            border-radius: 1.5rem;
+
+            box-shadow:
+                0 2rem 5rem rgba(0, 0, 0, 0.38);
+
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+        }
+
+
+        /* =========================================================
+           BRAND
+        ========================================================== */
+
+        .offline-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            gap: 1rem;
+
+            padding: 1.25rem 1.5rem;
+
+            border-bottom:
+                1px solid rgba(148, 163, 184, 0.14);
+        }
+
+        .offline-brand {
+            display: inline-flex;
+            align-items: center;
+
+            gap: 0.75rem;
+
+            color: #ffffff;
+
+            text-decoration: none;
+        }
+
+        .offline-brand__logo {
+            display: block;
+
+            width: 42px;
+            height: 42px;
+
+            object-fit: contain;
+        }
+
+        .offline-brand__name {
+            font-size: 1.1rem;
+            font-weight: 800;
+            letter-spacing: -0.025em;
+        }
+
+
+        /* =========================================================
+           CONNECTION STATUS
+        ========================================================== */
+
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+
+            gap: 0.5rem;
+
+            min-height: 32px;
+
+            padding: 0.4rem 0.7rem;
+
+            color: #fecaca;
+            background: rgba(220, 38, 38, 0.12);
+
+            border:
+                1px solid rgba(248, 113, 113, 0.22);
+
+            border-radius: 999px;
+
+            font-size: 0.76rem;
+            font-weight: 700;
+        }
+
+        .connection-status__indicator {
+            width: 8px;
+            height: 8px;
+
+            background: #ef4444;
+
+            border-radius: 50%;
+
+            box-shadow:
+                0 0 0 4px rgba(239, 68, 68, 0.13);
+        }
+
+        .connection-status--online {
+            color: #bbf7d0;
+            background: rgba(22, 163, 74, 0.12);
+
+            border-color:
+                rgba(74, 222, 128, 0.22);
+        }
+
+        .connection-status--online
+        .connection-status__indicator {
+            background: #22c55e;
+
+            box-shadow:
+                0 0 0 4px rgba(34, 197, 94, 0.13);
+        }
+
+
+        /* =========================================================
+           MAIN CONTENT
+        ========================================================== */
+
+        .offline-content {
+            padding:
+                clamp(2rem, 7vw, 4.5rem)
+                clamp(1.5rem, 7vw, 4.5rem);
+        }
+
+        .offline-icon {
+            display: grid;
+            place-items: center;
+
+            width: 72px;
+            height: 72px;
+
+            margin-bottom: 1.75rem;
+
+            color: #bfdbfe;
+            background: rgba(37, 99, 235, 0.14);
+
+            border:
+                1px solid rgba(96, 165, 250, 0.22);
+
+            border-radius: 1.25rem;
+
+            font-size: 2rem;
+        }
+
+        .offline-eyebrow {
+            margin: 0 0 0.65rem;
+
+            color: #60a5fa;
+
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+
+            text-transform: uppercase;
+        }
+
+        .offline-title {
+            margin: 0;
+
+            color: #ffffff;
+
+            font-size: clamp(2rem, 7vw, 3.5rem);
+            font-weight: 850;
+            line-height: 1.05;
+            letter-spacing: -0.05em;
+        }
+
+        .offline-description {
+            max-width: 590px;
+
+            margin: 1.25rem 0 0;
+
+            color: #cbd5e1;
+
+            font-size: 1rem;
+            line-height: 1.75;
+        }
+
+
+        /* =========================================================
+           NOTICE
+        ========================================================== */
+
+        .offline-notice {
+            display: flex;
+            align-items: flex-start;
+
+            gap: 0.75rem;
+
+            margin-top: 1.75rem;
+            padding: 1rem;
+
+            color: #fde68a;
+            background: rgba(217, 119, 6, 0.1);
+
+            border:
+                1px solid rgba(251, 191, 36, 0.2);
+
+            border-radius: 0.85rem;
+
+            font-size: 0.88rem;
+            line-height: 1.6;
+        }
+
+        .offline-notice__icon {
+            flex: 0 0 auto;
+        }
+
+
+        /* =========================================================
+           ACTIONS
+        ========================================================== */
+
+        .offline-actions {
+            display: flex;
+            flex-wrap: wrap;
+
+            gap: 0.75rem;
+
+            margin-top: 2rem;
+        }
+
+        .offline-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+
+            min-height: 48px;
+
+            padding: 0.75rem 1.25rem;
+
+            border: 1px solid transparent;
+            border-radius: 0.75rem;
+
+            font-weight: 750;
+
+            text-decoration: none;
+
+            cursor: pointer;
+
+            transition:
+                color 160ms ease,
+                background-color 160ms ease,
+                border-color 160ms ease,
+                transform 160ms ease;
+        }
+
+        .offline-button:hover {
+            transform: translateY(-1px);
+        }
+
+        .offline-button:focus-visible {
+            outline: 3px solid rgba(96, 165, 250, 0.45);
+            outline-offset: 3px;
+        }
+
+        .offline-button--primary {
+            color: #ffffff;
+            background: #2563eb;
+            border-color: #2563eb;
+        }
+
+        .offline-button--primary:hover {
+            background: #1d4ed8;
+            border-color: #1d4ed8;
+        }
+
+        .offline-button--secondary {
+            color: #e2e8f0;
+            background: rgba(255, 255, 255, 0.04);
+
+            border-color:
+                rgba(148, 163, 184, 0.25);
+        }
+
+        .offline-button--secondary:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.08);
+
+            border-color:
+                rgba(148, 163, 184, 0.4);
+        }
+
+
+        /* =========================================================
+           FOOTER
+        ========================================================== */
+
+        .offline-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            gap: 1rem;
+
+            padding: 1.1rem 1.5rem;
+
+            color: #64748b;
+
+            border-top:
+                1px solid rgba(148, 163, 184, 0.14);
+
+            font-size: 0.78rem;
+        }
+
+        .offline-footer p {
+            margin: 0;
+        }
+
+        .offline-footer__security {
+            display: inline-flex;
+            align-items: center;
+
+            gap: 0.4rem;
+        }
+
+
+        /* =========================================================
+           MOBILE
+        ========================================================== */
+
+        @media (max-width: 560px) {
+            body {
+                align-items: start;
+                padding: 0;
+            }
+
+            .offline-shell {
+                width: 100%;
+                min-height: 100vh;
+            }
+
+            .offline-card {
+                min-height: 100vh;
+
+                border: 0;
+                border-radius: 0;
+            }
+
+            .offline-header {
+                padding: 1rem;
+            }
+
+            .connection-status__label {
+                position: absolute;
+
+                width: 1px;
+                height: 1px;
+
+                overflow: hidden;
+
+                clip: rect(0, 0, 0, 0);
+                white-space: nowrap;
+            }
+
+            .connection-status {
+                padding: 0.65rem;
+            }
+
+            .offline-content {
+                padding: 3rem 1.25rem;
+            }
+
+            .offline-actions {
+                flex-direction: column;
+            }
+
+            .offline-button {
+                width: 100%;
+            }
+
+            .offline-footer {
+                align-items: flex-start;
+                flex-direction: column;
+
+                padding: 1rem 1.25rem;
+            }
+        }
+
+
+        /* =========================================================
+           REDUCED MOTION
+        ========================================================== */
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <main class="offline-shell">
+
+        <article class="offline-card">
+
+            <!-- HEADER -->
+
+            <header class="offline-header">
+
+                <a
+                    href="/"
+                    class="offline-brand"
+                    aria-label="Return to HappyWallet"
+                >
+                    <img
+                        src="{% static 'images/logo/logo.png' %}"
+                        alt=""
+                        class="offline-brand__logo"
+                        width="42"
+                        height="42"
+                    >
+
+                    <span class="offline-brand__name">
+                        HappyWallet
+                    </span>
+                </a>
+
+                <div
+                    class="connection-status"
+                    id="connectionStatus"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <span
+                        class="connection-status__indicator"
+                        aria-hidden="true"
+                    ></span>
+
+                    <span
+                        class="connection-status__label"
+                        id="connectionStatusLabel"
+                    >
+                        Offline
+                    </span>
+                </div>
+
+            </header>
+
+
+            <!-- CONTENT -->
+
+            <div class="offline-content">
+
+                <div
+                    class="offline-icon"
+                    aria-hidden="true"
+                >
+                    📡
+                </div>
+
+                <p class="offline-eyebrow">
+                    Connection unavailable
+                </p>
+
+                <h1 class="offline-title">
+                    HappyWallet is offline
+                </h1>
+
+                <p class="offline-description">
+                    Live blockchain, market and trading information
+                    cannot be loaded while this device is disconnected.
+                    Your wallet secrets remain protected and are never
+                    exposed by this page.
+                </p>
+
+                <div class="offline-notice">
+                    <span
+                        class="offline-notice__icon"
+                        aria-hidden="true"
+                    >
+                        ⚠️
+                    </span>
+
+                    <span>
+                        Previously stored information may be outdated.
+                        Always reconnect and verify live balances,
+                        prices, networks and transaction details before
+                        making a financial decision.
+                    </span>
+                </div>
+
+                <div class="offline-actions">
+
+                    <button
+                        type="button"
+                        class="offline-button offline-button--primary"
+                        id="retryConnection"
+                    >
+                        Check Connection
+                    </button>
+
+                    <a
+                        href="/"
+                        class="offline-button offline-button--secondary"
+                    >
+                        Return to Dashboard
+                    </a>
+
+                </div>
+
+            </div>
+
+
+            <!-- FOOTER -->
+
+            <footer class="offline-footer">
+
+                <p>
+                    &copy; {% now "Y" %} HappyWallet
+                </p>
+
+                <p class="offline-footer__security">
+                    <span aria-hidden="true">🔐</span>
+                    Private keys remain under your control
+                </p>
+
+            </footer>
+
+        </article>
+
+    </main>
+
+
+    <script>
+        (function () {
+            "use strict";
+
+            const retryButton =
+                document.getElementById(
+                    "retryConnection"
+                );
+
+            const status =
+                document.getElementById(
+                    "connectionStatus"
+                );
+
+            const statusLabel =
+                document.getElementById(
+                    "connectionStatusLabel"
+                );
+
+
+            function updateConnectionStatus() {
+                const online = navigator.onLine;
+
+                status.classList.toggle(
+                    "connection-status--online",
+                    online
+                );
+
+                statusLabel.textContent =
+                    online
+                        ? "Connection restored"
+                        : "Offline";
+
+                retryButton.textContent =
+                    online
+                        ? "Continue to HappyWallet"
+                        : "Check Connection";
+
+                return online;
+            }
+
+
+            retryButton.addEventListener(
+                "click",
+                function () {
+                    if (updateConnectionStatus()) {
+                        window.location.assign("/");
+                        return;
+                    }
+
+                    retryButton.textContent =
+                        "Still Offline";
+
+                    window.setTimeout(
+                        updateConnectionStatus,
+                        1800
+                    );
+                }
+            );
+
+
+            window.addEventListener(
+                "online",
+                updateConnectionStatus
+            );
+
+            window.addEventListener(
+                "offline",
+                updateConnectionStatus
+            );
+
+            updateConnectionStatus();
+        }());
+    </script>
+
+</body>
+
+</html>
