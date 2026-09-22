@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Trading | HappyWallet{% endblock %}
 
@@ -170,6 +171,82 @@ trading environment.
                     No blockchain networks are currently configured.
                 </div>
             {% endif %}
+        </div>
+    </div>
+
+
+
+    <!-- KRAKEN PUBLIC LIVE PRICES -->
+
+    <div
+        class="card trading-card mb-4"
+        data-kraken-live-prices
+        data-endpoint="{% url 'trading:kraken_live_prices' %}"
+    >
+        <div class="card-body p-4">
+
+            <div class="d-flex flex-wrap justify-content-between
+                        align-items-center gap-3 mb-3">
+
+                <div>
+                    <h2 class="h5 mb-1">
+                        Kraken Live Prices
+                    </h2>
+
+                    <p
+                        class="text-muted small mb-0"
+                        data-kraken-prices-status
+                        aria-live="polite"
+                    >
+                        Loading Kraken public market data…
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    class="btn btn-sm btn-outline-primary"
+                    data-kraken-refresh
+                >
+                    Refresh Prices
+                </button>
+
+            </div>
+
+            <div class="table-responsive">
+
+                <table class="table align-middle mb-0">
+
+                    <thead>
+                        <tr>
+                            <th scope="col">Pair</th>
+                            <th scope="col">Last Price</th>
+                            <th scope="col">Bid</th>
+                            <th scope="col">Ask</th>
+                            <th scope="col">24h Change</th>
+                            <th scope="col">24h Volume</th>
+                        </tr>
+                    </thead>
+
+                    <tbody data-kraken-prices-body>
+                        <tr>
+                            <td
+                                colspan="6"
+                                class="text-center text-muted py-4"
+                            >
+                                Retrieving public prices from Kraken…
+                            </td>
+                        </tr>
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            <p class="small text-muted mt-3 mb-0">
+                Public market information only. No Kraken credentials,
+                account access, or real-order execution is used.
+            </p>
+
         </div>
     </div>
 
@@ -644,5 +721,11 @@ trading environment.
     </div>
 
 </section>
+
+
+<script
+    src="{% static 'js/kraken-live-prices.js' %}"
+    defer
+></script>
 
 {% endblock %}

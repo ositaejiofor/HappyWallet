@@ -18,14 +18,18 @@ These views never access private keys, wallet secrets, signing material,
 or blockchain transaction broadcasting.
 """
 
+import logging
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
+from django.core.cache import cache
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Prefetch
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_GET
 
 from apps.blockchain.models import Asset, BlockchainNetwork
 
@@ -40,6 +44,18 @@ from .services import (
     OrderService,
     PaperTradingEngine,
 )
+from .services.kraken import (
+    KrakenAPIError,
+    KrakenConfigurationError,
+)
+from .services.kraken_account import (
+    KrakenAccountDataError,
+    KrakenAccountService,
+)
+from .services.kraken_market import KrakenPublicMarketService
+
+
+logger = logging.getLogger(__name__)
 
 
 LIVE_CONFIRMATION_PHRASE = "PLACE LIVE ORDER"
@@ -532,3 +548,120 @@ def cancel_live_order(request, order_id):
         messages.success(request, "Kraken confirmed the order cancellation.")
 
     return redirect("trading:order_detail", order_id=order.id)
+
+
+@login_required
+@require_GET
+def kraken_account_dashboard(request):
+    """
+    Display private, read-only Kraken account information.
+
+    Only an authenticated user with an active LIVE trading account may
+    access the globally configured Kraken account.
+
+    This endpoint never submits, modifies, or cancels orders.
+    """
+    account = _get_trading_account(request.user)
+
+    if (
+        not account.is_active
+        or account.mode != TradingAccount.Mode.LIVE
+    ):
+        raise PermissionDenied(
+            "Kraken account access requires an active live account."
+        )
+
+    context = {
+        "account": account,
+        "balances": [],
+        "open_orders": [],
+        "closed_orders": [],
+        "retrieved_at": None,
+        "kraken_error": "",
+    }
+
+    try:
+        account_data = KrakenAccountService().load(
+            account=account
+        )
+
+    except (
+        ValidationError,
+        KrakenConfigurationError,
+        KrakenAPIError,
+        KrakenAccountDataError,
+    ) as exc:
+        # Do not log balances, order payloads, credentials,
+        # or Kraken's complete exception message.
+        logger.warning(
+            "Kraken read-only account dashboard failed: %s",
+            exc.__class__.__name__,
+        )
+
+        context["kraken_error"] = (
+            "Kraken account information is temporarily unavailable. "
+            "Check the read-only API credentials and try again."
+        )
+
+    else:
+        context.update(account_data)
+
+    response = render(
+        request,
+        "trading/kraken_account.html",
+        context,
+    )
+
+    response["Cache-Control"] = (
+        "private, no-store, max-age=0"
+    )
+    response["Pragma"] = "no-cache"
+
+    return response
+
+
+@login_required
+@require_GET
+def kraken_live_prices(request):
+    """
+    Return normalized Kraken public prices.
+
+    No Kraken credentials or private endpoints are used. Results are
+    cached briefly to avoid unnecessary requests to Kraken.
+    """
+    cache_key = "trading:kraken-public-prices:v1"
+
+    payload = cache.get(cache_key)
+
+    if payload is None:
+        try:
+            payload = (
+                KrakenPublicMarketService()
+                .get_prices()
+            )
+        except KrakenAPIError:
+            logger.warning(
+                "Kraken public live-price request failed.",
+                exc_info=True,
+            )
+
+            return JsonResponse(
+                {
+                    "detail": (
+                        "Kraken live prices are temporarily "
+                        "unavailable."
+                    ),
+                },
+                status=502,
+            )
+
+        cache.set(
+            cache_key,
+            payload,
+            timeout=20,
+        )
+
+    response = JsonResponse(payload)
+    response["Cache-Control"] = "private, no-store"
+
+    return response

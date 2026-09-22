@@ -536,7 +536,7 @@
 
                             main-navigation__link
 
-                            {% if request.resolver_match.app_name == 'trading' %}
+                            {% if request.resolver_match.app_name == 'trading' and request.resolver_match.url_name == 'home' %}
 
                                 main-navigation__link--active
 
@@ -544,7 +544,7 @@
 
                         "
 
-                        {% if request.resolver_match.app_name == 'trading' %}
+                        {% if request.resolver_match.app_name == 'trading' and request.resolver_match.url_name == 'home' %}
 
                             aria-current="page"
 
@@ -569,6 +569,59 @@
                         <span class="main-navigation__label">
 
                             Trading
+
+                        </span>
+
+                    </a>
+
+
+
+
+                    <!-- KRAKEN ACCOUNT -->
+
+
+
+                    <a
+
+                        href="{% url 'trading:kraken_account' %}"
+
+                        class="
+
+                            main-navigation__link
+
+                            {% if request.resolver_match.app_name == 'trading' and request.resolver_match.url_name == 'kraken_account' %}
+
+                                main-navigation__link--active
+
+                            {% endif %}
+
+                        "
+
+                        {% if request.resolver_match.app_name == 'trading' and request.resolver_match.url_name == 'kraken_account' %}
+
+                            aria-current="page"
+
+                        {% endif %}
+
+                    >
+
+                        <span
+
+                            class="main-navigation__icon"
+
+                            aria-hidden="true"
+
+                        >
+
+                            🏦
+
+                        </span>
+
+
+
+                        <span class="main-navigation__label">
+
+                            Kraken Account
 
                         </span>
 

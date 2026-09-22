@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+
+{% block title %}Kraken Account | HappyWallet{% endblock %}
+
+{% block meta_description %}
+View read-only Kraken balances, open orders and closed orders.
+{% endblock %}
+
+{% block content %}
+
+<style>
+    .kraken-page {
+        min-height: 100vh;
+        padding: 2rem 0 4rem;
+    }
+
+    .kraken-card {
+        overflow: hidden;
+        border: 0;
+        border-radius: 1rem;
+        box-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, .07);
+    }
+
+    .kraken-table th,
+    .kraken-table td {
+        padding: .9rem 1rem;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .kraken-table th {
+        color: #6c757d;
+        font-size: .75rem;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+    }
+
+    .readonly-badge,
+    .side-badge,
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        font-size: .75rem;
+        font-weight: 700;
+    }
+
+    .readonly-badge {
+        padding: .4rem .75rem;
+        background: rgba(13, 110, 253, .1);
+        color: #0d6efd;
+    }
+
+    .side-badge,
+    .status-badge {
+        padding: .3rem .6rem;
+    }
+
+    .side-buy {
+        background: rgba(25, 135, 84, .1);
+        color: #198754;
+    }
+
+    .side-sell {
+        background: rgba(220, 53, 69, .1);
+        color: #dc3545;
+    }
+
+    .status-badge {
+        background: #f1f3f5;
+        color: #495057;
+    }
+
+    @media (max-width: 576px) {
+        .kraken-page {
+            padding-top: 1rem;
+        }
+
+        .kraken-header {
+            align-items: stretch !important;
+            flex-direction: column;
+        }
+
+        .kraken-header .btn {
+            width: 100%;
+        }
+    }
+</style>
+
+<section class="container kraken-page">
+
+    <header
+        class="kraken-header d-flex flex-wrap
+               justify-content-between align-items-center
+               gap-3 mb-4"
+    >
+        <div>
+            <div class="readonly-badge mb-3">
+                Read-only Kraken access
+            </div>
+
+            <h1 class="h2 mb-1">
+                Kraken Account
+            </h1>
+
+            <p class="text-muted mb-0">
+                Balances and order activity from the connected
+                Kraken account.
+            </p>
+        </div>
+
+        <a
+            href="{% url 'trading:home' %}"
+            class="btn btn-outline-primary"
+        >
+            Back to Trading
+        </a>
+    </header>
+
+    <div class="alert alert-info" role="status">
+        This dashboard uses private read-only Kraken endpoints.
+        It cannot place, modify or cancel orders. Live trading
+        remains disabled.
+    </div>
+
+    {% if kraken_error %}
+
+        <div class="alert alert-danger" role="alert">
+            {{ kraken_error }}
+        </div>
+
+    {% else %}
+
+        {% if retrieved_at %}
+            <p class="small text-muted mb-4">
+                Updated
+                {{ retrieved_at|date:"M j, Y, g:i:s A" }}
+            </p>
+        {% endif %}
+
+        <section class="card kraken-card mb-4">
+            <div class="card-header bg-white border-0 p-4 pb-2">
+                <h2 class="h4 mb-1">
+                    Account Balances
+                </h2>
+
+                <p class="text-muted mb-0">
+                    Non-zero balances reported by Kraken.
+                </p>
+            </div>
+
+            <div class="card-body p-0">
+                {% if balances %}
+                    <div class="table-responsive">
+                        <table
+                            class="table table-hover
+                                   kraken-table mb-0"
+                        >
+                            <thead>
+                                <tr>
+                                    <th scope="col">Asset</th>
+                                    <th scope="col">Balance</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {% for balance in balances %}
+                                    <tr>
+                                        <td class="fw-semibold">
+                                            {{ balance.asset }}
+                                        </td>
+
+                                        <td>
+                                            {{ balance.amount|floatformat:-8 }}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted p-4 mb-0">
+                        No non-zero Kraken balances were returned.
+                    </p>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="card kraken-card mb-4">
+            <div class="card-header bg-white border-0 p-4 pb-2">
+                <h2 class="h4 mb-1">
+                    Open Orders
+                </h2>
+
+                <p class="text-muted mb-0">
+                    Orders currently reported as open by Kraken.
+                </p>
+            </div>
+
+            <div class="card-body p-0">
+                {% if open_orders %}
+                    <div class="table-responsive">
+                        <table
+                            class="table table-hover
+                                   kraken-table mb-0"
+                        >
+                            <thead>
+                                <tr>
+                                    <th scope="col">Order</th>
+                                    <th scope="col">Pair</th>
+                                    <th scope="col">Side</th>
+                                    <th scope="col">Type</th>
+                                    <th scope="col">Volume</th>
+                                    <th scope="col">Executed</th>
+                                    <th scope="col">Price</th>
+                                    <th scope="col">Opened</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {% for order in open_orders %}
+                                    <tr>
+                                        <td>{{ order.order_id }}</td>
+
+                                        <td class="fw-semibold">
+                                            {{ order.pair }}
+                                        </td>
+
+                                        <td>
+                                            <span
+                                                class="side-badge
+                                                       side-{{ order.side }}"
+                                            >
+                                                {{ order.side|upper }}
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            {{ order.order_type|title }}
+                                        </td>
+
+                                        <td>
+                                            {{ order.volume|floatformat:-8 }}
+                                        </td>
+
+                                        <td>
+                                            {{ order.executed_volume|floatformat:-8 }}
+                                        </td>
+
+                                        <td>
+                                            {{ order.price|floatformat:-8 }}
+                                        </td>
+
+                                        <td>
+                                            {% if order.opened_at %}
+                                                {{ order.opened_at|date:"M j, Y, g:i A" }}
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted p-4 mb-0">
+                        No open Kraken orders.
+                    </p>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="card kraken-card">
+            <div class="card-header bg-white border-0 p-4 pb-2">
+                <h2 class="h4 mb-1">
+                    Recent Closed Orders
+                </h2>
+
+                <p class="text-muted mb-0">
+                    Up to 25 recently closed Kraken orders.
+                </p>
+            </div>
+
+            <div class="card-body p-0">
+                {% if closed_orders %}
+                    <div class="table-responsive">
+                        <table
+                            class="table table-hover
+                                   kraken-table mb-0"
+                        >
+                            <thead>
+                                <tr>
+                                    <th scope="col">Order</th>
+                                    <th scope="col">Pair</th>
+                                    <th scope="col">Side</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Executed</th>
+                                    <th scope="col">Cost</th>
+                                    <th scope="col">Fee</th>
+                                    <th scope="col">Closed</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {% for order in closed_orders %}
+                                    <tr>
+                                        <td>{{ order.order_id }}</td>
+
+                                        <td class="fw-semibold">
+                                            {{ order.pair }}
+                                        </td>
+
+                                        <td>
+                                            <span
+                                                class="side-badge
+                                                       side-{{ order.side }}"
+                                            >
+                                                {{ order.side|upper }}
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            <span class="status-badge">
+                                                {{ order.status|title }}
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            {{ order.executed_volume|floatformat:-8 }}
+                                        </td>
+
+                                        <td>
+                                            {{ order.cost|floatformat:-8 }}
+                                        </td>
+
+                                        <td>
+                                            {{ order.fee|floatformat:-8 }}
+                                        </td>
+
+                                        <td>
+                                            {% if order.closed_at %}
+                                                {{ order.closed_at|date:"M j, Y, g:i A" }}
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted p-4 mb-0">
+                        No closed Kraken orders were returned.
+                    </p>
+                {% endif %}
+            </div>
+        </section>
+
+    {% endif %}
+
+</section>
+
+{% endblock %}
