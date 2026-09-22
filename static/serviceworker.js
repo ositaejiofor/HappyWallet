@@ -19,7 +19,6 @@ const OFFLINE_URL = "/offline/";
 const OFFLINE_ASSETS = [
     OFFLINE_URL,
     "/static/css/offline.css",
-    "/static/js/offline.js",
     "/static/images/logo/logo.png",
 ];
 
