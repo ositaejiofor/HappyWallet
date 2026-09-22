@@ -11,10 +11,11 @@ from __future__ import annotations
 import json
 import socket
 import time
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any, Final
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
+from urllib.parse import quote, urlencode, urlparse
 from urllib.request import Request, urlopen
 
 from django.conf import settings
@@ -29,6 +30,8 @@ DEFAULT_TIMEOUT_SECONDS: Final = 10
 DEFAULT_MAX_RETRIES: Final = 2
 DEFAULT_RETRY_BACKOFF_SECONDS: Final = 0.25
 MAX_RESPONSE_BYTES: Final = 5 * 1024 * 1024
+DEFAULT_TRANSACTION_LIMIT: Final = 25
+MAX_TRANSACTION_LIMIT: Final = 200
 
 RETRYABLE_HTTP_STATUS_CODES: Final[frozenset[int]] = frozenset(
     {408, 425, 429, 500, 502, 503, 504}
@@ -55,6 +58,28 @@ class TronResponseError(TronNetworkError):
 
 class TronBroadcastDisabledError(TronNetworkError):
     """Raised whenever TRON transaction broadcasting is attempted."""
+
+
+@dataclass(frozen=True, slots=True)
+class TronTransaction:
+    """Normalized public TRX transfer returned by TronGrid."""
+
+    transaction_hash: str
+    transaction_type: str
+    status: str
+    network: str = "TRON Mainnet"
+    amount: Decimal | None = None
+    symbol: str = "TRX"
+    block_number: int | None = None
+    timestamp: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class TronTransactionHistory:
+    """Immutable result for a successful public history request."""
+
+    transactions: tuple[TronTransaction, ...]
+    available: bool
 
 
 class TronReadOnlyClient:
@@ -182,18 +207,79 @@ class TronReadOnlyClient:
 
         return balance_sun / TRON_SUN_PER_TRX
 
+    def get_transaction_history(
+        self,
+        address: str,
+        *,
+        limit: int = DEFAULT_TRANSACTION_LIMIT,
+    ) -> TronTransactionHistory:
+        """Return confirmed public TRX transfers, newest first."""
+
+        normalized_address, _visible = self._prepare_address(address)
+        bounded_limit = self._bounded_int(
+            limit,
+            1,
+            MAX_TRANSACTION_LIMIT,
+        )
+        query = urlencode(
+            {
+                "only_confirmed": "true",
+                "limit": bounded_limit,
+                "order_by": "block_timestamp,desc",
+            }
+        )
+        payload = self._get(
+            f"/v1/accounts/{quote(normalized_address, safe='')}/transactions?{query}"
+        )
+
+        if payload.get("success") is not True:
+            raise TronResponseError(
+                "TRON provider rejected the history request."
+            )
+
+        raw_transactions = payload.get("data")
+        if not isinstance(raw_transactions, list):
+            raise TronResponseError(
+                "TRON provider returned invalid transaction history."
+            )
+
+        transactions: list[TronTransaction] = []
+
+        for raw_transaction in raw_transactions:
+            transaction = self._parse_trx_transfer(raw_transaction)
+            if transaction is not None:
+                transactions.append(transaction)
+
+        return TronTransactionHistory(
+            transactions=tuple(transactions),
+            available=True,
+        )
+
+    def _get(self, path: str) -> JSONDict:
+        return self._request(
+            Request(
+                f"{self.rpc_url}{path}",
+                headers=self._headers(),
+                method="GET",
+            )
+        )
+
     def _post(self, path: str, payload: JSONDict) -> JSONDict:
         request_body = json.dumps(
             payload,
             separators=(",", ":"),
         ).encode("utf-8")
 
-        request = Request(
-            f"{self.rpc_url}{path}",
-            data=request_body,
-            headers=self._headers(),
-            method="POST",
+        return self._request(
+            Request(
+                f"{self.rpc_url}{path}",
+                data=request_body,
+                headers=self._headers(),
+                method="POST",
+            )
         )
+
+    def _request(self, request: Request) -> JSONDict:
 
         attempts = self.max_retries + 1
         last_error: BaseException | None = None
@@ -247,6 +333,76 @@ class TronReadOnlyClient:
         raise TronTemporaryError(
             "TRON provider is temporarily unavailable."
         ) from last_error
+
+    @staticmethod
+    def _parse_trx_transfer(payload: Any) -> TronTransaction | None:
+        if not isinstance(payload, dict):
+            return None
+
+        transaction_hash = payload.get("txID")
+        raw_data = payload.get("raw_data")
+
+        if not isinstance(transaction_hash, str) or not transaction_hash:
+            return None
+        if not isinstance(raw_data, dict):
+            return None
+
+        contracts = raw_data.get("contract")
+        if not isinstance(contracts, list) or not contracts:
+            return None
+
+        contract = contracts[0]
+        if not isinstance(contract, dict):
+            return None
+        if contract.get("type") != "TransferContract":
+            return None
+
+        parameter = contract.get("parameter")
+        value = parameter.get("value") if isinstance(parameter, dict) else None
+        if not isinstance(value, dict):
+            return None
+
+        raw_amount = value.get("amount")
+        if isinstance(raw_amount, bool):
+            return None
+
+        try:
+            amount_sun = Decimal(str(raw_amount))
+        except (InvalidOperation, TypeError, ValueError):
+            return None
+
+        if not amount_sun.is_finite() or amount_sun < 0:
+            return None
+
+        ret = payload.get("ret")
+        result = ret[0].get("contractRet") if (
+            isinstance(ret, list)
+            and ret
+            and isinstance(ret[0], dict)
+        ) else None
+        status = "confirmed" if result == "SUCCESS" else "failed"
+
+        block_number = payload.get("blockNumber")
+        if isinstance(block_number, bool) or not isinstance(block_number, int):
+            block_number = None
+
+        timestamp_ms = payload.get("block_timestamp")
+        timestamp = (
+            timestamp_ms // 1000
+            if isinstance(timestamp_ms, int)
+            and not isinstance(timestamp_ms, bool)
+            and timestamp_ms >= 0
+            else None
+        )
+
+        return TronTransaction(
+            transaction_hash=transaction_hash,
+            transaction_type="transfer",
+            status=status,
+            amount=amount_sun / TRON_SUN_PER_TRX,
+            block_number=block_number,
+            timestamp=timestamp,
+        )
 
     def _headers(self) -> dict[str, str]:
         headers = {
@@ -339,4 +495,6 @@ __all__ = [
     "TronReadOnlyClient",
     "TronResponseError",
     "TronTemporaryError",
+    "TronTransaction",
+    "TronTransactionHistory",
 ]

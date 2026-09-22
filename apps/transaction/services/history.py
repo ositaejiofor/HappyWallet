@@ -51,6 +51,11 @@ from .networks.ethereum import (
     EthereumTransaction,
     get_transaction_history,
 )
+from .networks.tron import (
+    TronNetworkError,
+    TronReadOnlyClient,
+    TronTransaction,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -67,6 +72,9 @@ DEFAULT_NETWORK_NAME = "Unknown Network"
 DEFAULT_ETHEREUM_BLOCK_LIMIT = 5
 MIN_ETHEREUM_BLOCK_LIMIT = 1
 MAX_ETHEREUM_BLOCK_LIMIT = 100
+DEFAULT_TRON_TRANSACTION_LIMIT = 25
+MIN_TRON_TRANSACTION_LIMIT = 1
+MAX_TRON_TRANSACTION_LIMIT = 200
 
 ETHEREUM_NETWORK_IDENTIFIERS = frozenset(
     {
@@ -76,6 +84,16 @@ ETHEREUM_NETWORK_IDENTIFIERS = frozenset(
         "eth",
         "eth-mainnet",
         "mainnet",
+    }
+)
+
+TRON_NETWORK_IDENTIFIERS = frozenset(
+    {
+        "tron",
+        "tron-mainnet",
+        "tron-main-net",
+        "trx",
+        "trx-mainnet",
     }
 )
 
@@ -183,6 +201,11 @@ def get_wallet_transaction_history(
 
     if _is_ethereum_network(network_identifier):
         return _get_ethereum_transaction_history(
+            address=address,
+        )
+
+    if _is_tron_network(network_identifier):
+        return _get_tron_transaction_history(
             address=address,
         )
 
@@ -471,6 +494,78 @@ def _is_ethereum_network(
     return normalized in ETHEREUM_NETWORK_IDENTIFIERS
 
 
+def _is_tron_network(
+    network_identifier: str,
+) -> bool:
+    """Return True when the identifier represents TRON Mainnet."""
+
+    normalized = _normalize_network_identifier(
+        network_identifier,
+    )
+
+    return normalized in TRON_NETWORK_IDENTIFIERS
+
+
+# ============================================================================
+# TRON HISTORY
+# ============================================================================
+
+
+def _get_tron_transaction_history(
+    *,
+    address: str,
+) -> TransactionHistory:
+    """Resolve confirmed public TRX transfer history through TronGrid."""
+
+    rpc_url = _get_tron_rpc_url()
+
+    if not rpc_url:
+        return _unavailable_transaction_history(
+            reason="tron_rpc_url_missing",
+        )
+
+    try:
+        result = TronReadOnlyClient(
+            rpc_url=rpc_url,
+            api_key=_get_tron_api_key(),
+            timeout=_get_tron_timeout(),
+        ).get_transaction_history(
+            address,
+            limit=_get_tron_transaction_limit(),
+        )
+    except TronNetworkError as exc:
+        logger.warning(
+            "TRON transaction history provider failure.",
+            extra={"error_type": type(exc).__name__},
+        )
+        return _unavailable_transaction_history(
+            reason="tron_provider_error",
+        )
+    except Exception as exc:
+        logger.error(
+            "Unexpected TRON transaction history failure.",
+            extra={"error_type": type(exc).__name__},
+        )
+        return _unavailable_transaction_history(
+            reason="unexpected_tron_provider_error",
+        )
+
+    if (
+        result is None
+        or not isinstance(getattr(result, "available", None), bool)
+        or not isinstance(getattr(result, "transactions", None), (tuple, list))
+        or not result.available
+    ):
+        return _unavailable_transaction_history(
+            reason="invalid_tron_provider_response",
+        )
+
+    return TransactionHistory(
+        transactions=_convert_tron_transactions(result.transactions),
+        available=True,
+    )
+
+
 # ============================================================================
 # ETHEREUM HISTORY
 # ============================================================================
@@ -692,8 +787,112 @@ def _get_ethereum_block_limit() -> int:
 
 
 # ============================================================================
+# TRON CONFIGURATION
+# ============================================================================
+
+
+def _get_tron_rpc_url() -> str:
+    value = getattr(settings, "TRON_RPC_URL", "")
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _get_tron_api_key() -> str:
+    value = getattr(settings, "TRON_API_KEY", "")
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _get_tron_timeout() -> int:
+    value = getattr(settings, "TRON_RPC_TIMEOUT", 10)
+
+    if isinstance(value, bool):
+        return 10
+
+    try:
+        timeout = int(value)
+    except (TypeError, ValueError):
+        return 10
+
+    return max(1, min(timeout, 30))
+
+
+def _get_tron_transaction_limit() -> int:
+    value = getattr(
+        settings,
+        "TRON_TRANSACTION_HISTORY_LIMIT",
+        DEFAULT_TRON_TRANSACTION_LIMIT,
+    )
+
+    if isinstance(value, bool):
+        return DEFAULT_TRON_TRANSACTION_LIMIT
+
+    try:
+        limit = int(value)
+    except (TypeError, ValueError):
+        return DEFAULT_TRON_TRANSACTION_LIMIT
+
+    if limit < MIN_TRON_TRANSACTION_LIMIT:
+        return DEFAULT_TRON_TRANSACTION_LIMIT
+
+    return min(limit, MAX_TRON_TRANSACTION_LIMIT)
+
+
+# ============================================================================
 # PROVIDER DTO CONVERSION
 # ============================================================================
+
+
+def _convert_tron_transactions(
+    transactions: Any,
+) -> tuple[WalletTransaction, ...]:
+    if not isinstance(transactions, (tuple, list)):
+        return ()
+
+    converted: list[WalletTransaction] = []
+
+    for transaction in transactions:
+        normalized = _convert_tron_transaction(transaction)
+        if normalized is not None:
+            converted.append(normalized)
+
+    return tuple(converted)
+
+
+def _convert_tron_transaction(
+    transaction: TronTransaction | None,
+) -> WalletTransaction | None:
+    if transaction is None:
+        return None
+
+    transaction_hash = _safe_required_string(
+        getattr(transaction, "transaction_hash", None),
+    )
+
+    if not transaction_hash:
+        return None
+
+    return WalletTransaction(
+        transaction_hash=transaction_hash,
+        transaction_type=_safe_string(
+            getattr(transaction, "transaction_type", None),
+            default=DEFAULT_TRANSACTION_TYPE,
+        ),
+        status=_safe_string(
+            getattr(transaction, "status", None),
+            default=DEFAULT_TRANSACTION_STATUS,
+        ),
+        network=_safe_string(
+            getattr(transaction, "network", None),
+            default="TRON Mainnet",
+        ),
+        amount=_safe_decimal(getattr(transaction, "amount", None)),
+        symbol=_safe_optional_string(getattr(transaction, "symbol", None)),
+        block_number=_safe_non_negative_int(
+            getattr(transaction, "block_number", None),
+        ),
+        timestamp=_safe_non_negative_int(
+            getattr(transaction, "timestamp", None),
+        ),
+    )
 
 
 def _convert_ethereum_transactions(

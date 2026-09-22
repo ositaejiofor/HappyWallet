@@ -14,6 +14,18 @@ from .balance import (
     WalletBalance,
     WalletBalanceService,
 )
+from .tron_balance import TronWalletBalanceService
+
+
+TRON_NETWORK_IDENTIFIERS = frozenset(
+    {
+        "tron",
+        "tron-mainnet",
+        "tron-main-net",
+        "trx",
+        "trx-mainnet",
+    }
+)
 
 
 # ============================================================================
@@ -242,8 +254,11 @@ class WalletDashboardBalanceService:
         )
 
         try:
+            balance_service_class = self._get_balance_service_class(
+                network=network,
+            )
             balance_service = (
-                self.balance_service_class(
+                balance_service_class(
                     network=network,
                 )
             )
@@ -305,6 +320,39 @@ class WalletDashboardBalanceService:
     # ========================================================================
     # NETWORK
     # ========================================================================
+
+    def _get_balance_service_class(
+        self,
+        *,
+        network: BlockchainNetwork,
+    ) -> type[WalletBalanceService] | type[TronWalletBalanceService]:
+        """Select TRON only for the default production service mapping.
+
+        Explicitly injected test doubles retain precedence.
+        """
+
+        if self.balance_service_class is not WalletBalanceService:
+            return self.balance_service_class
+
+        candidates = (
+            getattr(network, "slug", ""),
+            getattr(network, "code", ""),
+            getattr(network, "name", ""),
+            getattr(network, "symbol", ""),
+        )
+
+        for candidate in candidates:
+            if not isinstance(candidate, str):
+                continue
+
+            normalized = (
+                candidate.strip().lower().replace("_", "-").replace(" ", "-")
+            )
+
+            if normalized in TRON_NETWORK_IDENTIFIERS:
+                return TronWalletBalanceService
+
+        return WalletBalanceService
 
     @staticmethod
     def _get_network(
