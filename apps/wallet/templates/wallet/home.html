@@ -1724,6 +1724,9 @@
     tabindex="-1"
     aria-labelledby="receiveModalLabel"
     aria-hidden="true"
+    {% if wallet_is_tron %}
+        data-usdt-status-url="{% url 'wallet:tron_usdt_receive_status' wallet.pk %}"
+    {% endif %}
 >
 
     <div class="modal-dialog modal-dialog-centered">
@@ -1863,6 +1866,73 @@
                     >
                         ✓ Address copied.
                     </div>
+
+
+                    {% if wallet_is_tron %}
+
+                        <!-- LOCAL PUBLIC-ADDRESS QR -->
+
+                        <div class="text-center my-4">
+
+                            <img
+                                src="{% url 'wallet:tron_receive_qr' wallet.pk %}"
+                                alt="QR code for the selected TRON receiving address"
+                                width="220"
+                                height="220"
+                                class="img-fluid border rounded-3 bg-white p-2"
+                                loading="lazy"
+                            >
+
+                            <p class="small text-muted mt-2 mb-0">
+                                Generated locally from this public address.
+                                Always compare the written address before sending.
+                            </p>
+
+                        </div>
+
+
+                        <!-- OFFICIAL TOKEN IDENTITY -->
+
+                        <div class="border rounded-3 p-3 mb-3">
+
+                            <div class="small text-muted">
+                                Asset and network
+                            </div>
+
+                            <div class="fw-semibold">
+                                USDT — TRON (TRC-20)
+                            </div>
+
+                            <div class="small text-muted mt-2">
+                                Official contract
+                            </div>
+
+                            <code class="small text-break">
+                                {{ tron_usdt_contract_address }}
+                            </code>
+
+                        </div>
+
+
+                        <!-- CONFIRMED DEPOSIT STATUS -->
+
+                        <div
+                            id="tronUsdtDepositStatus"
+                            class="alert alert-light border small"
+                            role="status"
+                            aria-live="polite"
+                        >
+                            Open this panel to check confirmed USDT deposits.
+                        </div>
+
+                        <a
+                            href="{% url 'transaction:index' %}?wallet={{ wallet.pk }}"
+                            class="btn btn-outline-secondary btn-sm w-100 mb-3"
+                        >
+                            View confirmed transaction history
+                        </a>
+
+                    {% endif %}
 
 
                     <!-- WARNING -->
@@ -2405,6 +2475,83 @@ document.addEventListener("DOMContentLoaded", function () {
         document.getElementById(
             "receiveNetworkWarning"
         );
+
+    const receiveModal =
+        document.getElementById("receiveModal");
+
+    const tronUsdtDepositStatus =
+        document.getElementById("tronUsdtDepositStatus");
+
+    let tronUsdtStatusLoaded = false;
+
+    function renderTronUsdtStatus(payload) {
+
+        if (!tronUsdtDepositStatus) {
+            return;
+        }
+
+        if (!payload || payload.available !== true) {
+            tronUsdtDepositStatus.textContent =
+                "Confirmed deposit history is temporarily unavailable.";
+            return;
+        }
+
+        const count = Number(payload.confirmed_deposit_count || 0);
+
+        if (!payload.latest) {
+            tronUsdtDepositStatus.textContent =
+                "No confirmed incoming USDT deposits were found.";
+            return;
+        }
+
+        tronUsdtDepositStatus.textContent =
+            "Confirmed incoming deposits: " + count +
+            ". Latest: " + payload.latest.amount + " USDT.";
+    }
+
+    function loadTronUsdtStatus() {
+
+        if (
+            !receiveModal ||
+            !tronUsdtDepositStatus ||
+            tronUsdtStatusLoaded
+        ) {
+            return;
+        }
+
+        const endpoint = receiveModal.dataset.usdtStatusUrl;
+        if (!endpoint) {
+            return;
+        }
+
+        tronUsdtStatusLoaded = true;
+        tronUsdtDepositStatus.textContent =
+            "Checking confirmed USDT deposits…";
+
+        fetch(endpoint, {
+            method: "GET",
+            credentials: "same-origin",
+            headers: {"Accept": "application/json"},
+        })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error("Deposit status request failed.");
+                }
+                return response.json();
+            })
+            .then(renderTronUsdtStatus)
+            .catch(function () {
+                tronUsdtDepositStatus.textContent =
+                    "Confirmed deposit history is temporarily unavailable.";
+            });
+    }
+
+    if (receiveModal) {
+        receiveModal.addEventListener(
+            "shown.bs.modal",
+            loadTronUsdtStatus
+        );
+    }
 
     const receiveNetworkName = "{{ network|escapejs }}";
     const receiveNativeSymbol = "{{ native_symbol|escapejs }}";

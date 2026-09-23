@@ -26,13 +26,19 @@ from __future__ import annotations
 from decimal import Decimal
 from uuid import UUID
 
+import qrcode
+from qrcode.image.svg import SvgPathFillImage
+
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import Http404
+from django.http import Http404, HttpResponse, JsonResponse
+from django.views.decorators.http import require_GET
 from django.shortcuts import redirect, render
 
 from apps.blockchain.models import BlockchainNetwork
 from apps.security.vault import InvalidPasswordError
+from apps.transaction.services.history import get_wallet_transaction_history
 from apps.wallet.models import Wallet
 from apps.wallet.services.address import WalletAddressService
 from apps.wallet.services.creation import (
@@ -53,6 +59,9 @@ from .services.wallet import WalletService
 
 APP_NAME = "HappyWallet"
 DEFAULT_NETWORK_SLUG = "ethereum-mainnet"
+TRON_NETWORK_IDENTIFIERS = frozenset(
+    {"tron", "tron-mainnet", "tron-main-net", "trx", "trx-mainnet"}
+)
 
 
 # ============================================================================
@@ -121,6 +130,50 @@ def _get_wallet_address(wallet: Wallet) -> str:
         return address.address
 
     return (wallet.address or "").strip()
+
+
+def _is_tron_wallet(wallet: Wallet) -> bool:
+    """Return whether the wallet belongs to a supported TRON network."""
+
+    network = getattr(wallet, "network", None)
+    candidates = (
+        getattr(network, "slug", ""),
+        getattr(network, "name", ""),
+        getattr(network, "symbol", ""),
+    )
+    return any(
+        str(candidate).strip().lower().replace("_", "-").replace(" ", "-")
+        in TRON_NETWORK_IDENTIFIERS
+        for candidate in candidates
+    )
+
+
+def _get_receive_wallet(*, user, wallet_id: UUID) -> Wallet:
+    """Resolve one active, owned TRON wallet without exposing foreign IDs."""
+
+    wallet = (
+        Wallet.objects
+        .select_related("network")
+        .filter(pk=wallet_id, user=user, status=Wallet.Status.ACTIVE)
+        .first()
+    )
+    if wallet is None or not _is_tron_wallet(wallet):
+        raise Http404("Wallet not found.")
+    return wallet
+
+
+def _validate_tron_receive_address(address: str) -> str:
+    """Validate the public Base58 address used by the receive-only flow."""
+
+    normalized = str(address or "").strip()
+    base58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+    if (
+        len(normalized) != 34
+        or not normalized.startswith("T")
+        or any(character not in base58 for character in normalized)
+    ):
+        raise Http404("Wallet address is unavailable.")
+    return normalized
 
 
 def _build_assets(balance) -> list[dict]:
@@ -336,6 +389,11 @@ def wallet_home(request):
         "assets": assets,
         "asset_count": len(assets),
         "wallet_is_tron": native_symbol.upper() == "TRX",
+        "tron_usdt_contract_address": getattr(
+            settings,
+            "TRON_USDT_CONTRACT_ADDRESS",
+            "",
+        ),
         **selection_context,
         **_wallet_status_context(wallet),
     }
@@ -345,6 +403,81 @@ def wallet_home(request):
         "wallet/home.html",
         context,
     )
+
+
+# ============================================================================
+# READ-ONLY TRON RECEIVE FLOW
+# ============================================================================
+
+
+@login_required
+@require_GET
+def tron_receive_qr(request, wallet_id: UUID) -> HttpResponse:
+    """Return a locally generated SVG QR code for an owned TRON address."""
+
+    wallet = _get_receive_wallet(user=request.user, wallet_id=wallet_id)
+    address = _validate_tron_receive_address(_get_wallet_address(wallet))
+    image = qrcode.make(address, image_factory=SvgPathFillImage)
+    response = HttpResponse(
+        image.to_string(encoding="unicode"),
+        content_type="image/svg+xml; charset=utf-8",
+    )
+    response["Cache-Control"] = "no-store, private"
+    response["X-Content-Type-Options"] = "nosniff"
+    response["Content-Security-Policy"] = (
+        "default-src 'none'; style-src 'unsafe-inline'"
+    )
+    response["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+@login_required
+@require_GET
+def tron_usdt_receive_status(request, wallet_id: UUID) -> JsonResponse:
+    """Return confirmed incoming USDT activity for an owned TRON wallet."""
+
+    wallet = _get_receive_wallet(user=request.user, wallet_id=wallet_id)
+    _validate_tron_receive_address(_get_wallet_address(wallet))
+    history = get_wallet_transaction_history(wallet=wallet)
+
+    incoming = tuple(
+        transaction
+        for transaction in history.transactions
+        if (
+            str(transaction.symbol or "").upper() == "USDT"
+            and transaction.transaction_type == "receive"
+            and transaction.status == "confirmed"
+        )
+    )
+    latest = incoming[0] if incoming else None
+    payload = {
+        "available": bool(history.available),
+        "confirmed_deposit_count": len(incoming),
+        "latest": None,
+        "contract_address": getattr(
+            settings,
+            "TRON_USDT_CONTRACT_ADDRESS",
+            "",
+        ),
+        "network": "TRON Mainnet",
+        "read_only": True,
+    }
+    if latest is not None:
+        payload["latest"] = {
+            "transaction_hash": latest.transaction_hash,
+            "amount": (
+                format(latest.amount, "f")
+                if latest.amount is not None
+                else None
+            ),
+            "symbol": latest.symbol,
+            "timestamp": latest.timestamp,
+        }
+
+    response = JsonResponse(payload)
+    response["Cache-Control"] = "no-store, private"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 # ============================================================================

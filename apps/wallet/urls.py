@@ -31,6 +31,18 @@ urlpatterns = [
         name="home",
     ),
 
+    path(
+        "<uuid:wallet_id>/receive/tron-qr.svg",
+        views.tron_receive_qr,
+        name="tron_receive_qr",
+    ),
+
+    path(
+        "<uuid:wallet_id>/receive/usdt-status/",
+        views.tron_usdt_receive_status,
+        name="tron_usdt_receive_status",
+    ),
+
     # ========================================================================
     # WALLET CREATION
     # ========================================================================
