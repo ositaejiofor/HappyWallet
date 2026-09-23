@@ -37,6 +37,7 @@ class _Response:
 
 class TronNetworkHistoryTests(SimpleTestCase):
     ADDRESS = "TUoHaVjx7n5xz8LwPRDckgFrDWhMhuSuJM"
+    USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
 
     @patch.object(tron, "urlopen")
     def test_confirmed_trx_transfer_is_parsed(self, mock_urlopen: Mock) -> None:
@@ -108,6 +109,76 @@ class TronNetworkHistoryTests(SimpleTestCase):
 
         self.assertEqual(result.transactions, ())
 
+    @patch.object(tron, "urlopen")
+    def test_usdt_balance_is_read_from_confirmed_account_data(
+        self,
+        mock_urlopen: Mock,
+    ) -> None:
+        mock_urlopen.return_value = _Response(
+            {
+                "success": True,
+                "data": [{"trc20": [{self.USDT: "9876543"}]}],
+            }
+        )
+
+        balance = TronReadOnlyClient(
+            rpc_url="https://api.example.invalid",
+            max_retries=0,
+        ).get_trc20_balance(
+            self.ADDRESS,
+            contract_address=self.USDT,
+            decimals=6,
+        )
+
+        self.assertEqual(balance, Decimal("9.876543"))
+        request = mock_urlopen.call_args.args[0]
+        self.assertEqual(request.get_method(), "GET")
+        self.assertIn("only_confirmed=true", request.full_url)
+
+    @patch.object(tron, "urlopen")
+    def test_confirmed_usdt_receive_is_parsed(
+        self,
+        mock_urlopen: Mock,
+    ) -> None:
+        mock_urlopen.return_value = _Response(
+            {
+                "success": True,
+                "data": [
+                    {
+                        "transaction_id": "d" * 64,
+                        "token_info": {
+                            "address": self.USDT,
+                            "symbol": "USDT",
+                            "decimals": 6,
+                        },
+                        "from": "TXVi4XhETj3sVhjnFQHEfZJYHqT7pW8w9M",
+                        "to": self.ADDRESS,
+                        "value": "2500000",
+                        "block_timestamp": 1_700_000_123_000,
+                    }
+                ],
+            }
+        )
+
+        result = TronReadOnlyClient(
+            rpc_url="https://api.example.invalid",
+            max_retries=0,
+        ).get_trc20_transaction_history(
+            self.ADDRESS,
+            contract_address=self.USDT,
+            symbol="USDT",
+            decimals=6,
+        )
+
+        transaction = result.transactions[0]
+        self.assertEqual(transaction.transaction_type, "receive")
+        self.assertEqual(transaction.amount, Decimal("2.5"))
+        self.assertEqual(transaction.symbol, "USDT")
+        self.assertEqual(transaction.status, "confirmed")
+        request = mock_urlopen.call_args.args[0]
+        self.assertIn("transactions/trc20", request.full_url)
+        self.assertIn("contract_address=", request.full_url)
+
 
 class TronApplicationHistoryTests(SimpleTestCase):
     ADDRESS = "TUoHaVjx7n5xz8LwPRDckgFrDWhMhuSuJM"
@@ -123,6 +194,7 @@ class TronApplicationHistoryTests(SimpleTestCase):
         mock_settings.TRON_API_KEY = "test-key"
         mock_settings.TRON_RPC_TIMEOUT = 10
         mock_settings.TRON_TRANSACTION_HISTORY_LIMIT = 25
+        mock_settings.TRON_USDT_CONTRACT_ADDRESS = ""
         mock_client_class.return_value.get_transaction_history.return_value = (
             TronTransactionHistory(
                 transactions=(
@@ -171,6 +243,7 @@ class TronApplicationHistoryTests(SimpleTestCase):
         mock_settings.TRON_API_KEY = ""
         mock_settings.TRON_RPC_TIMEOUT = 10
         mock_settings.TRON_TRANSACTION_HISTORY_LIMIT = 25
+        mock_settings.TRON_USDT_CONTRACT_ADDRESS = ""
         mock_client_class.return_value.get_transaction_history.side_effect = (
             tron.TronTemporaryError("unavailable")
         )

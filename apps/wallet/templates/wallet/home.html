@@ -571,6 +571,61 @@
                 </div>
 
             </header>
+            <!-- =================================================
+                 WALLET SELECTOR
+            ================================================== -->
+
+            {% if wallet_options|length > 1 %}
+
+                <section class="wallet-card p-3 p-md-4 mb-4">
+
+                    <form method="get" class="row g-3 align-items-end">
+
+                        <div class="col-12 col-md">
+
+                            <label
+                                for="wallet-selector"
+                                class="form-label fw-semibold"
+                            >
+                                Selected wallet
+                            </label>
+
+                            <select
+                                id="wallet-selector"
+                                name="wallet"
+                                class="form-select"
+                            >
+
+                                {% for wallet_option in wallet_options %}
+
+                                    <option
+                                        value="{{ wallet_option.pk }}"
+                                        {% if wallet_option.pk == wallet.pk %}selected{% endif %}
+                                    >
+                                        {{ wallet_option.name }}
+                                        {% if wallet_option.network %}
+                                            — {{ wallet_option.network.name }}
+                                        {% endif %}
+                                    </option>
+
+                                {% endfor %}
+
+                            </select>
+
+                        </div>
+
+                        <div class="col-12 col-md-auto">
+                            <button type="submit" class="btn btn-primary w-100">
+                                View wallet
+                            </button>
+                        </div>
+
+                    </form>
+
+                </section>
+
+            {% endif %}
+
 
 
             <!-- =================================================
@@ -957,9 +1012,9 @@
                                     </div>
 
                                     <p class="text-muted small mt-3 mb-0">
-                                        This is a public Ethereum address.
-                                        It can receive ETH and supported
-                                        Ethereum ERC-20 tokens.
+                                        This is a public {{ network }} address.
+                                        It can receive {{ native_symbol }} and
+                                        supported tokens on this network.
                                     </p>
 
                                 {% else %}
@@ -1119,7 +1174,7 @@
                                             </div>
 
                                             <small class="text-muted">
-                                                ETH and supported ERC-20 tokens
+                                                {{ native_symbol }} and supported tokens
                                             </small>
 
                                         </button>
@@ -1157,7 +1212,7 @@
 
                                 <div class="col-12 col-md-6">
 
-                                    {% if wallet_address and assets %}
+                                    {% if wallet_address and assets and not wallet_is_tron %}
 
                                         <button
                                             type="button"
@@ -1178,7 +1233,7 @@
                                             </div>
 
                                             <small class="text-muted">
-                                                ETH and supported ERC-20 tokens
+                                                {{ native_symbol }} and supported tokens
                                             </small>
 
                                         </button>
@@ -1202,7 +1257,11 @@
                                             </div>
 
                                             <small class="text-muted">
-                                                No sendable asset available
+                                                {% if wallet_is_tron %}
+                                                    TRON sending is disabled (read-only)
+                                                {% else %}
+                                                    No sendable asset available
+                                                {% endif %}
                                             </small>
 
                                         </button>
@@ -1246,13 +1305,13 @@
                                     </h2>
 
                                     <p class="text-muted small mb-0">
-                                        ETH and supported Ethereum tokens.
+                                        {{ native_symbol }} and supported tokens.
                                     </p>
 
                                 </div>
 
                                 <span class="badge text-bg-light">
-                                    Ethereum Mainnet
+                                    {{ network }}
                                 </span>
 
                             </div>
@@ -1308,13 +1367,13 @@
 
                                                                     Native
                                                                     •
-                                                                    Ethereum
+                                                                    {{ network_symbol }}
 
                                                                 {% else %}
 
-                                                                    ERC-20
+                                                                    {% if wallet_is_tron %}TRC-20{% else %}ERC-20{% endif %}
                                                                     •
-                                                                    Ethereum
+                                                                    {{ network_symbol }}
 
                                                                 {% endif %}
 
@@ -1398,8 +1457,8 @@
                                     </h5>
 
                                     <p class="text-muted small mb-0">
-                                        No ETH or configured ERC-20 token
-                                        balances are currently available.
+                                        No configured asset balance is
+                                        currently available.
                                     </p>
 
                                 </div>
@@ -1683,7 +1742,7 @@
                     </h5>
 
                     <small class="text-muted">
-                        Ethereum Mainnet
+                        {{ network }}
                     </small>
 
                 </div>
@@ -1732,7 +1791,7 @@
                                     {% if asset.is_native %}
                                         — Native
                                     {% else %}
-                                        — ERC-20
+                                        — {% if wallet_is_tron %}TRC-20{% else %}ERC-20{% endif %}
                                     {% endif %}
 
                                 </option>
@@ -1759,11 +1818,11 @@
                     <div class="alert alert-primary small">
 
                         <div class="fw-semibold mb-1">
-                            Receiving on Ethereum Mainnet
+                            Receiving on {{ network }}
                         </div>
 
                         <div id="receiveAssetDescription">
-                            Send ETH on Ethereum Mainnet to this address.
+                            Send the selected asset on {{ network }} to this address.
                         </div>
 
                     </div>
@@ -1781,7 +1840,7 @@
                                 class="form-control address-input"
                                 value="{{ wallet_address }}"
                                 readonly
-                                aria-label="Ethereum receiving address"
+                                aria-label="{{ network }} receiving address"
                             >
 
                             <button
@@ -1813,17 +1872,20 @@
                         <strong>Important:</strong>
 
                         <span id="receiveNetworkWarning">
-                            Only send the selected asset using the Ethereum
-                            network.
+                            Only send the selected asset using {{ network }}.
                         </span>
 
                         <br><br>
 
-                        USDT must be sent as
-                        <strong>USDT — Ethereum (ERC-20)</strong>.
-
-                        Do not send USDT using TRC-20, BEP-20, or another
-                        network.
+                        {% if wallet_is_tron %}
+                            USDT must be withdrawn as
+                            <strong>USDT — TRON (TRC-20)</strong>.
+                            Do not use ERC-20, BEP-20, or another network.
+                        {% else %}
+                            USDT must be sent as
+                            <strong>USDT — Ethereum (ERC-20)</strong>.
+                            Do not use TRC-20, BEP-20, or another network.
+                        {% endif %}
 
                     </div>
 
@@ -2344,6 +2406,11 @@ document.addEventListener("DOMContentLoaded", function () {
             "receiveNetworkWarning"
         );
 
+    const receiveNetworkName = "{{ network|escapejs }}";
+    const receiveNativeSymbol = "{{ native_symbol|escapejs }}";
+    const receiveTokenStandard =
+        "{% if wallet_is_tron %}TRC-20{% else %}ERC-20{% endif %}";
+
 
     function updateReceiveAsset() {
 
@@ -2372,14 +2439,16 @@ document.addEventListener("DOMContentLoaded", function () {
             if (isNative) {
 
                 receiveAssetDescription.textContent =
-                    "Send ETH on Ethereum Mainnet to this address.";
+                    "Send " + receiveNativeSymbol + " on " +
+                    receiveNetworkName + " to this address.";
 
             } else {
 
                 receiveAssetDescription.textContent =
                     "Send " +
                     symbol +
-                    " using its Ethereum ERC-20 network to this address.";
+                    " using " + receiveNetworkName + " (" +
+                    receiveTokenStandard + ") to this address.";
 
             }
 
@@ -2391,14 +2460,16 @@ document.addEventListener("DOMContentLoaded", function () {
             if (isNative) {
 
                 receiveNetworkWarning.textContent =
-                    "Only send ETH using the Ethereum network.";
+                    "Only send " + receiveNativeSymbol + " using " +
+                    receiveNetworkName + ".";
 
             } else {
 
                 receiveNetworkWarning.textContent =
                     "Only send " +
                     symbol +
-                    " using the Ethereum ERC-20 network.";
+                    " using " + receiveNetworkName + " (" +
+                    receiveTokenStandard + ").";
 
             }
 

@@ -32,6 +32,7 @@ DEFAULT_RETRY_BACKOFF_SECONDS: Final = 0.25
 MAX_RESPONSE_BYTES: Final = 5 * 1024 * 1024
 DEFAULT_TRANSACTION_LIMIT: Final = 25
 MAX_TRANSACTION_LIMIT: Final = 200
+MAX_TOKEN_DECIMALS: Final = 36
 
 RETRYABLE_HTTP_STATUS_CODES: Final[frozenset[int]] = frozenset(
     {408, 425, 429, 500, 502, 503, 504}
@@ -207,6 +208,77 @@ class TronReadOnlyClient:
 
         return balance_sun / TRON_SUN_PER_TRX
 
+    def get_trc20_balance(
+        self,
+        address: str,
+        *,
+        contract_address: str,
+        decimals: int,
+    ) -> Decimal:
+        """Return a confirmed public TRC-20 balance in token units."""
+
+        normalized_address, _visible = self._prepare_address(address)
+        normalized_contract, _contract_visible = self._prepare_address(
+            contract_address
+        )
+        token_decimals = self._bounded_token_decimals(decimals)
+        query = urlencode({"only_confirmed": "true"})
+        payload = self._get(
+            f"/v1/accounts/{quote(normalized_address, safe='')}?{query}"
+        )
+
+        if payload.get("success") is not True:
+            raise TronResponseError(
+                "TRON provider rejected the account request."
+            )
+
+        accounts = payload.get("data")
+        if not isinstance(accounts, list):
+            raise TronResponseError(
+                "TRON provider returned invalid account data."
+            )
+        if not accounts:
+            return Decimal("0")
+
+        account = accounts[0]
+        if not isinstance(account, dict):
+            raise TronResponseError(
+                "TRON provider returned invalid account data."
+            )
+
+        token_entries = account.get("trc20", [])
+        if not isinstance(token_entries, list):
+            raise TronResponseError(
+                "TRON provider returned invalid TRC-20 balances."
+            )
+
+        raw_balance = Decimal("0")
+        for entry in token_entries:
+            if not isinstance(entry, dict):
+                raise TronResponseError(
+                    "TRON provider returned invalid TRC-20 balances."
+                )
+            for token_address, value in entry.items():
+                if token_address != normalized_contract:
+                    continue
+                if isinstance(value, bool):
+                    raise TronResponseError(
+                        "TRON provider returned an invalid TRC-20 balance."
+                    )
+                try:
+                    raw_balance = Decimal(str(value))
+                except (InvalidOperation, TypeError, ValueError) as exc:
+                    raise TronResponseError(
+                        "TRON provider returned an invalid TRC-20 balance."
+                    ) from exc
+
+        if not raw_balance.is_finite() or raw_balance < 0:
+            raise TronResponseError(
+                "TRON provider returned an invalid TRC-20 balance."
+            )
+
+        return raw_balance / (Decimal(10) ** token_decimals)
+
     def get_transaction_history(
         self,
         address: str,
@@ -247,6 +319,67 @@ class TronReadOnlyClient:
 
         for raw_transaction in raw_transactions:
             transaction = self._parse_trx_transfer(raw_transaction)
+            if transaction is not None:
+                transactions.append(transaction)
+
+        return TronTransactionHistory(
+            transactions=tuple(transactions),
+            available=True,
+        )
+
+    def get_trc20_transaction_history(
+        self,
+        address: str,
+        *,
+        contract_address: str,
+        symbol: str = "USDT",
+        decimals: int = 6,
+        limit: int = DEFAULT_TRANSACTION_LIMIT,
+    ) -> TronTransactionHistory:
+        """Return confirmed transfers for one configured TRC-20 token."""
+
+        normalized_address, _visible = self._prepare_address(address)
+        normalized_contract, _contract_visible = self._prepare_address(
+            contract_address
+        )
+        token_decimals = self._bounded_token_decimals(decimals)
+        bounded_limit = self._bounded_int(limit, 1, MAX_TRANSACTION_LIMIT)
+        normalized_symbol = str(symbol or "").strip().upper()
+        if not normalized_symbol:
+            raise TronNetworkError("TRC-20 token symbol is required.")
+
+        query = urlencode(
+            {
+                "only_confirmed": "true",
+                "limit": bounded_limit,
+                "order_by": "block_timestamp,desc",
+                "contract_address": normalized_contract,
+            }
+        )
+        payload = self._get(
+            f"/v1/accounts/{quote(normalized_address, safe='')}"
+            f"/transactions/trc20?{query}"
+        )
+
+        if payload.get("success") is not True:
+            raise TronResponseError(
+                "TRON provider rejected the TRC-20 history request."
+            )
+        raw_transactions = payload.get("data")
+        if not isinstance(raw_transactions, list):
+            raise TronResponseError(
+                "TRON provider returned invalid TRC-20 history."
+            )
+
+        transactions = []
+        for raw_transaction in raw_transactions:
+            transaction = self._parse_trc20_transfer(
+                raw_transaction,
+                wallet_address=normalized_address,
+                contract_address=normalized_contract,
+                symbol=normalized_symbol,
+                decimals=token_decimals,
+            )
             if transaction is not None:
                 transactions.append(transaction)
 
@@ -404,6 +537,64 @@ class TronReadOnlyClient:
             timestamp=timestamp,
         )
 
+    @staticmethod
+    def _parse_trc20_transfer(
+        payload: Any,
+        *,
+        wallet_address: str,
+        contract_address: str,
+        symbol: str,
+        decimals: int,
+    ) -> TronTransaction | None:
+        if not isinstance(payload, dict):
+            return None
+
+        transaction_hash = payload.get("transaction_id")
+        token_info = payload.get("token_info")
+        if not isinstance(transaction_hash, str) or not transaction_hash:
+            return None
+        if not isinstance(token_info, dict):
+            return None
+        if token_info.get("address") != contract_address:
+            return None
+
+        sender = payload.get("from")
+        recipient = payload.get("to")
+        if recipient == wallet_address:
+            transaction_type = "receive"
+        elif sender == wallet_address:
+            transaction_type = "send"
+        else:
+            return None
+
+        raw_value = payload.get("value")
+        if isinstance(raw_value, bool):
+            return None
+        try:
+            value = Decimal(str(raw_value))
+        except (InvalidOperation, TypeError, ValueError):
+            return None
+        if not value.is_finite() or value < 0:
+            return None
+
+        timestamp_ms = payload.get("block_timestamp")
+        timestamp = (
+            timestamp_ms // 1000
+            if isinstance(timestamp_ms, int)
+            and not isinstance(timestamp_ms, bool)
+            and timestamp_ms >= 0
+            else None
+        )
+
+        return TronTransaction(
+            transaction_hash=transaction_hash,
+            transaction_type=transaction_type,
+            status="confirmed",
+            amount=value / (Decimal(10) ** decimals),
+            symbol=symbol,
+            timestamp=timestamp,
+        )
+
     def _headers(self) -> dict[str, str]:
         headers = {
             "Accept": "application/json",
@@ -467,6 +658,18 @@ class TronReadOnlyClient:
         except (TypeError, ValueError):
             normalized = minimum
         return max(minimum, min(normalized, maximum))
+
+    @staticmethod
+    def _bounded_token_decimals(value: object) -> int:
+        if isinstance(value, bool):
+            raise TronNetworkError("TRC-20 token decimals are invalid.")
+        try:
+            decimals = int(value)
+        except (TypeError, ValueError) as exc:
+            raise TronNetworkError("TRC-20 token decimals are invalid.") from exc
+        if not 0 <= decimals <= MAX_TOKEN_DECIMALS:
+            raise TronNetworkError("TRC-20 token decimals are invalid.")
+        return decimals
 
 
 class TronBroadcaster:

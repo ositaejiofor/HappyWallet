@@ -35,6 +35,40 @@ class TronWalletBalanceTests(SimpleTestCase):
         self.assertEqual(result.tokens, ())
         client.get_trx_balance.assert_called_once_with(self.ADDRESS)
 
+    def test_configured_trc20_usdt_balance_is_returned_separately(self) -> None:
+        client = Mock()
+        client.get_trx_balance.return_value = Decimal("2")
+        client.get_trc20_balance.return_value = Decimal("125.500001")
+        asset = SimpleNamespace(
+            pk="token-id",
+            name="Tether USD",
+            symbol="USDT",
+            token_standard="trc20",
+            contract_address="TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+            decimals=6,
+            is_native=False,
+        )
+        service = TronWalletBalanceService(
+            network=SimpleNamespace(name="TRON Mainnet"),
+            client=client,
+        )
+
+        result = service.get_wallet_balance(
+            address=self.ADDRESS,
+            assets=(asset,),
+        )
+
+        self.assertEqual(result.native.balance, Decimal("2"))
+        self.assertEqual(len(result.tokens), 1)
+        self.assertEqual(result.tokens[0].symbol, "USDT")
+        self.assertEqual(result.tokens[0].balance, Decimal("125.500001"))
+        self.assertEqual(result.tokens[0].raw_balance, 125_500_001)
+        client.get_trc20_balance.assert_called_once_with(
+            self.ADDRESS,
+            contract_address=asset.contract_address,
+            decimals=6,
+        )
+
     def test_dashboard_selects_tron_service(self) -> None:
         service = WalletDashboardBalanceService()
         selected = service._get_balance_service_class(

@@ -11,7 +11,7 @@ from apps.transaction.services.networks.tron import (
     TronReadOnlyClient,
 )
 
-from .balance import NativeBalance, WalletBalance
+from .balance import NativeBalance, TokenBalance, WalletBalance
 
 
 class TronWalletBalanceService:
@@ -32,12 +32,37 @@ class TronWalletBalanceService:
         address: str,
         assets: Iterable[Asset] = (),
     ) -> WalletBalance:
-        # TRC-10/TRC-20 balances are intentionally outside this milestone.
-        # Consume no token metadata and return only the native public balance.
-        del assets
-
         balance = self.client.get_trx_balance(address)
         raw_balance = int(balance * TRON_SUN_PER_TRX)
+        tokens: list[TokenBalance] = []
+
+        for asset in assets:
+            if (
+                asset.is_native
+                or asset.token_standard != Asset.TokenStandard.TRC20
+                or not asset.contract_address
+            ):
+                continue
+
+            token_balance = self.client.get_trc20_balance(
+                address,
+                contract_address=asset.contract_address.strip(),
+                decimals=asset.decimals,
+            )
+            token_raw_balance = int(
+                token_balance * (Decimal(10) ** asset.decimals)
+            )
+            tokens.append(
+                TokenBalance(
+                    address=asset.contract_address.strip(),
+                    name=asset.name.strip(),
+                    symbol=asset.symbol.strip().upper(),
+                    balance=token_balance,
+                    raw_balance=token_raw_balance,
+                    decimals=asset.decimals,
+                    asset_id=str(asset.pk),
+                )
+            )
 
         return WalletBalance(
             address=address.strip(),
@@ -48,7 +73,7 @@ class TronWalletBalanceService:
                 raw_balance=raw_balance,
                 decimals=6,
             ),
-            tokens=(),
+            tokens=tuple(tokens),
         )
 
 

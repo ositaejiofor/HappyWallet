@@ -24,9 +24,11 @@ Sensitive wallet material is handled by the wallet/security service layer.
 from __future__ import annotations
 
 from decimal import Decimal
+from uuid import UUID
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import Http404
 from django.shortcuts import redirect, render
 
 from apps.blockchain.models import BlockchainNetwork
@@ -58,22 +60,47 @@ DEFAULT_NETWORK_SLUG = "ethereum-mainnet"
 # ============================================================================
 
 
-def _get_user_wallet(user) -> Wallet | None:
+def _get_user_wallets(user):
+    """Return the authenticated user's public wallet records."""
+
+    if user is None:
+        return Wallet.objects.none()
+
+    return (
+        Wallet.objects
+        .select_related("network")
+        .filter(user=user)
+        .order_by("-created_at", "-id")
+    )
+
+
+def _get_user_wallet(
+    user,
+    wallet_id: str | None = None,
+) -> Wallet | None:
     """
     Return the user's wallet with its network loaded.
 
     This helper performs no wallet-secret operations.
     """
 
-    if user is None:
-        return None
+    wallets = _get_user_wallets(user)
 
-    return (
-        Wallet.objects
-        .select_related("network")
-        .filter(user=user)
-        .first()
-    )
+    if not wallet_id:
+        return wallets.first()
+
+    try:
+        selected_id = UUID(str(wallet_id))
+    except (TypeError, ValueError, AttributeError) as exc:
+        raise Http404("Wallet not found.") from exc
+
+    wallet = wallets.filter(pk=selected_id).first()
+
+    if wallet is None:
+        # The same response is used for unknown and foreign wallet IDs.
+        raise Http404("Wallet not found.")
+
+    return wallet
 
 
 def _get_wallet_address(wallet: Wallet) -> str:
@@ -214,7 +241,15 @@ def wallet_home(request):
     No private wallet material is exposed by this view.
     """
 
-    wallet = _get_user_wallet(request.user)
+    wallets = tuple(_get_user_wallets(request.user))
+    wallet = _get_user_wallet(
+        request.user,
+        request.GET.get("wallet"),
+    )
+    selection_context = {
+        "wallet_options": wallets,
+        "selected_wallet_id": str(wallet.pk) if wallet else "",
+    }
 
     # ------------------------------------------------------------------------
     # NO WALLET
@@ -241,6 +276,7 @@ def wallet_home(request):
                 "currency": "ETH",
                 "assets": [],
                 "asset_count": 0,
+                **selection_context,
             },
         )
 
@@ -267,7 +303,10 @@ def wallet_home(request):
         return render(
             request,
             "wallet/home.html",
-            _locked_wallet_context(wallet),
+            {
+                **_locked_wallet_context(wallet),
+                **selection_context,
+            },
         )
 
     # ------------------------------------------------------------------------
@@ -296,6 +335,8 @@ def wallet_home(request):
         "currency": native_symbol,
         "assets": assets,
         "asset_count": len(assets),
+        "wallet_is_tron": native_symbol.upper() == "TRX",
+        **selection_context,
         **_wallet_status_context(wallet),
     }
 

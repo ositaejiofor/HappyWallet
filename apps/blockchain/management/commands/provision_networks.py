@@ -59,6 +59,15 @@ NETWORKS = [
                 "is_native": True,
                 "is_active": True,
             },
+            {
+                "symbol": "USDT",
+                "name": "Tether USD",
+                "token_standard": Asset.TokenStandard.TRC20,
+                "contract_address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+                "decimals": 6,
+                "is_native": False,
+                "is_active": True,
+            },
         ],
     },
 ]

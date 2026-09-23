@@ -52,7 +52,6 @@ from .networks.ethereum import (
     get_transaction_history,
 )
 from .networks.tron import (
-    TronNetworkError,
     TronReadOnlyClient,
     TronTransaction,
 )
@@ -515,7 +514,7 @@ def _get_tron_transaction_history(
     *,
     address: str,
 ) -> TransactionHistory:
-    """Resolve confirmed public TRX transfer history through TronGrid."""
+    """Resolve confirmed public TRX and configured USDT transfer history."""
 
     rpc_url = _get_tron_rpc_url()
 
@@ -525,43 +524,78 @@ def _get_tron_transaction_history(
         )
 
     try:
-        result = TronReadOnlyClient(
+        client = TronReadOnlyClient(
             rpc_url=rpc_url,
             api_key=_get_tron_api_key(),
             timeout=_get_tron_timeout(),
-        ).get_transaction_history(
-            address,
-            limit=_get_tron_transaction_limit(),
         )
-    except TronNetworkError as exc:
+    except Exception as exc:
+        logger.warning(
+            "TRON transaction history client configuration failed.",
+            extra={"error_type": type(exc).__name__},
+        )
+        return _unavailable_transaction_history(
+            reason="tron_client_configuration_error",
+        )
+    limit = _get_tron_transaction_limit()
+    provider_results = []
+    provider_errors = []
+
+    try:
+        provider_results.append(
+            client.get_transaction_history(address, limit=limit)
+        )
+    except Exception as exc:
+        provider_errors.append(exc)
+
+    usdt_contract = _get_tron_usdt_contract_address()
+    if usdt_contract:
+        try:
+            provider_results.append(
+                client.get_trc20_transaction_history(
+                    address,
+                    contract_address=usdt_contract,
+                    symbol="USDT",
+                    decimals=6,
+                    limit=limit,
+                )
+            )
+        except Exception as exc:
+            provider_errors.append(exc)
+
+    valid_results = [
+        result
+        for result in provider_results
+        if (
+            result is not None
+            and isinstance(getattr(result, "available", None), bool)
+            and isinstance(getattr(result, "transactions", None), (tuple, list))
+            and result.available
+        )
+    ]
+
+    if not valid_results:
+        error = provider_errors[0] if provider_errors else None
         logger.warning(
             "TRON transaction history provider failure.",
-            extra={"error_type": type(exc).__name__},
+            extra={
+                "error_type": type(error).__name__ if error else "invalid_response"
+            },
         )
         return _unavailable_transaction_history(
             reason="tron_provider_error",
         )
-    except Exception as exc:
-        logger.error(
-            "Unexpected TRON transaction history failure.",
-            extra={"error_type": type(exc).__name__},
-        )
-        return _unavailable_transaction_history(
-            reason="unexpected_tron_provider_error",
-        )
 
-    if (
-        result is None
-        or not isinstance(getattr(result, "available", None), bool)
-        or not isinstance(getattr(result, "transactions", None), (tuple, list))
-        or not result.available
-    ):
-        return _unavailable_transaction_history(
-            reason="invalid_tron_provider_response",
-        )
+    transactions = []
+    for result in valid_results:
+        transactions.extend(_convert_tron_transactions(result.transactions))
+    transactions.sort(
+        key=lambda transaction: transaction.timestamp or 0,
+        reverse=True,
+    )
 
     return TransactionHistory(
-        transactions=_convert_tron_transactions(result.transactions),
+        transactions=tuple(transactions[:limit]),
         available=True,
     )
 
@@ -798,6 +832,11 @@ def _get_tron_rpc_url() -> str:
 
 def _get_tron_api_key() -> str:
     value = getattr(settings, "TRON_API_KEY", "")
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _get_tron_usdt_contract_address() -> str:
+    value = getattr(settings, "TRON_USDT_CONTRACT_ADDRESS", "")
     return value.strip() if isinstance(value, str) else ""
 
 

@@ -46,6 +46,66 @@
 
 
     <!-- =========================================================
+         WALLET SELECTOR
+    ========================================================== -->
+
+    {% if wallet_options|length > 1 %}
+
+        <section class="card border-0 shadow-sm mb-4">
+
+            <div class="card-body p-4">
+
+                <form method="get" class="row g-3 align-items-end">
+
+                    <div class="col-12 col-md">
+
+                        <label
+                            for="transaction-wallet-selector"
+                            class="form-label fw-semibold"
+                        >
+                            Selected wallet
+                        </label>
+
+                        <select
+                            id="transaction-wallet-selector"
+                            name="wallet"
+                            class="form-select"
+                        >
+
+                            {% for wallet_option in wallet_options %}
+
+                                <option
+                                    value="{{ wallet_option.pk }}"
+                                    {% if wallet_option.pk == wallet.pk %}selected{% endif %}
+                                >
+                                    {{ wallet_option.name }}
+                                    {% if wallet_option.network %}
+                                        — {{ wallet_option.network.name }}
+                                    {% endif %}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+                    <div class="col-12 col-md-auto">
+                        <button type="submit" class="btn btn-primary w-100">
+                            View transactions
+                        </button>
+                    </div>
+
+                </form>
+
+            </div>
+
+        </section>
+
+    {% endif %}
+
+
+    <!-- =========================================================
          WALLET / HISTORY STATUS
     ========================================================== -->
 

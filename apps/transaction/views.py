@@ -28,9 +28,10 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from uuid import UUID
 
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import render
 
 from apps.transaction.services.history import (
@@ -69,8 +70,10 @@ def transaction_list(
     public blockchain history retrieval to the transaction service.
     """
 
+    wallets = tuple(_get_user_wallets(user=request.user))
     wallet = _get_user_wallet(
         user=request.user,
+        wallet_id=request.GET.get("wallet"),
     )
 
     history = _resolve_transaction_history(
@@ -80,6 +83,7 @@ def transaction_list(
     context = _build_context(
         wallet=wallet,
         history=history,
+        wallet_options=wallets,
     )
 
     return render(
@@ -94,9 +98,24 @@ def transaction_list(
 # ============================================================================
 
 
+def _get_user_wallets(*, user: Any):
+    """Return the authenticated user's wallets in stable default order."""
+
+    if user is None:
+        return Wallet.objects.none()
+
+    return (
+        Wallet.objects
+        .select_related("network")
+        .filter(user=user)
+        .order_by("-created_at", "-id")
+    )
+
+
 def _get_user_wallet(
     *,
     user: Any,
+    wallet_id: str | None = None,
 ) -> Wallet | None:
     """
     Return the authenticated user's newest wallet.
@@ -107,21 +126,22 @@ def _get_user_wallet(
     transaction template may display public network metadata.
     """
 
-    if user is None:
-        return None
+    wallets = _get_user_wallets(user=user)
 
-    return (
-        Wallet.objects
-        .select_related("network")
-        .filter(
-            user=user,
-        )
-        .order_by(
-            "-created_at",
-            "-id",
-        )
-        .first()
-    )
+    if not wallet_id:
+        return wallets.first()
+
+    try:
+        selected_id = UUID(str(wallet_id))
+    except (TypeError, ValueError, AttributeError) as exc:
+        raise Http404("Wallet not found.") from exc
+
+    wallet = wallets.filter(pk=selected_id).first()
+
+    if wallet is None:
+        raise Http404("Wallet not found.")
+
+    return wallet
 
 
 # ============================================================================
@@ -226,6 +246,7 @@ def _build_context(
     *,
     wallet: Wallet | None,
     history: TransactionHistory,
+    wallet_options: tuple[Wallet, ...] = (),
 ) -> dict[str, Any]:
     """
     Build the presentation context for the transaction page.
@@ -239,6 +260,8 @@ def _build_context(
     return {
         "app_name": APP_NAME,
         "wallet": wallet,
+        "wallet_options": wallet_options,
+        "selected_wallet_id": str(wallet.pk) if wallet else "",
         "transactions": transactions,
         "transaction_count": len(transactions),
         "transaction_history_available": history.available,

@@ -737,6 +737,13 @@ TRON_API_KEY = env_str(
     "TRON_API_KEY",
 )
 
+# Official Tether USD TRC-20 contract on TRON Mainnet. This is public token
+# metadata only; it is never used for signing or broadcasting transactions.
+TRON_USDT_CONTRACT_ADDRESS = env_str(
+    "TRON_USDT_CONTRACT_ADDRESS",
+    "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+)
+
 
 # ============================================================================
 # BLOCKCHAIN NETWORK IDS
