@@ -46,3 +46,13 @@ media/
 *.bak
 *.broken.bak
 *_backup.py
+
+# Local development artifacts
+node_modules/
+package-lock.json
+package.json
+HappyWallet-*.patch
+HappyWallet-*.zip
+HappyWallet-*.tar.gz
+*-integration-context.txt
+*-incomplete.diff
