@@ -114,7 +114,11 @@ trading environment.
 
             <div class="trading-mode">
                 <span>●</span>
-                {{ account.get_mode_display }}
+                {% if live_status.account_is_live %}
+                    {% if live_status.ready %}Kraken live orders enabled{% else %}Live account — orders disabled{% endif %}
+                {% else %}
+                    {{ account.get_mode_display }}
+                {% endif %}
             </div>
 
         </div>
@@ -129,7 +133,8 @@ trading environment.
                 <div>
                     <h2 class="h5 mb-1">Supported Networks &amp; Assets</h2>
                     <p class="text-muted small mb-0">
-                        Blockchain networks and assets currently enabled in HappyWallet.
+                        Blockchain networks and assets configured in HappyWallet.
+                        This list does not indicate Kraken trading support.
                     </p>
                 </div>
             </div>
@@ -270,7 +275,9 @@ trading environment.
                             </h2>
 
                             <p class="text-muted small mb-0">
-                                {% if account.mode == "live" %}
+                                {% if live_status.account_is_live and not live_status.ready %}
+                                    Kraken live orders are disabled. Check the live trading setting and credentials on the server.
+                                {% elif account.mode == "live" %}
                                     Create a pending order for explicit Kraken confirmation.
                                 {% else %}
                                     Create an order for paper execution.
@@ -279,13 +286,17 @@ trading environment.
                         </div>
 
                         <span class="badge text-bg-light">
-                            {{ account.get_mode_display }}
+                            {% if live_status.account_is_live and not live_status.ready %}Orders disabled{% else %}{{ account.get_mode_display }}{% endif %}
                         </span>
 
                     </div>
 
 
-                    {% if pairs %}
+                    {% if live_status.account_is_live and not live_status.ready %}
+                    <div class="alert alert-warning mb-0" role="status">
+                        Live order creation is unavailable. No order will be submitted to Kraken.
+                    </div>
+                    {% elif pairs %}
 
                     <form
                         method="post"
@@ -512,13 +523,17 @@ trading environment.
                         </h2>
 
                         <span class="badge text-bg-light">
-                            Paper
+                            {% if live_status.account_is_live %}Kraken account{% else %}Paper{% endif %}
                         </span>
 
                     </div>
 
 
-                    {% if balances %}
+                    {% if live_status.account_is_live %}
+                        <p class="text-muted mb-0">
+                            Paper balances are hidden for live accounts. View verified Kraken balances on the Kraken account page.
+                        </p>
+                    {% elif balances %}
 
                         {% for balance in balances %}
 
