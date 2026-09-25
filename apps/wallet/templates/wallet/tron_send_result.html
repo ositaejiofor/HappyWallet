@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}TRON Send Status | HappyWallet{% endblock %}
+{% block content %}
+<main class="container py-4" style="max-width:760px">
+  <h1>Transaction status</h1>
+  <div class="card"><div class="card-body">
+    <p><strong>Status:</strong> {{ intent.get_status_display }}</p>
+    <p><strong>{{ intent.amount }} {{ intent.asset }}</strong> to <code>{{ intent.recipient }}</code></p>
+    {% if intent.transaction_hash %}<p><strong>Transaction ID:</strong> <code>{{ intent.transaction_hash }}</code></p><p class="text-muted">Submitted does not mean confirmed. Verify solidified inclusion and contract execution before treating it as final.</p>{% endif %}
+    {% if intent.status == 'outcome_unknown' %}<div class="alert alert-danger">The node response was uncertain. Do not create a replacement or resend automatically. Check this transaction ID/address history after its expiry.</div>{% endif %}
+    {% if intent.error_message %}<div class="alert alert-warning">{{ intent.error_message }}</div>{% endif %}
+    <a class="btn btn-outline-primary" href="{% url 'wallet:home' %}?wallet={{ intent.wallet_id }}">Return to wallet</a>
+  </div></div>
+</main>
+{% endblock %}

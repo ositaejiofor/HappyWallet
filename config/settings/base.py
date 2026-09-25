@@ -759,6 +759,29 @@ BITCOIN_CHAIN_ID = None
 
 TRON_CHAIN_ID = None
 
+# Guarded send defaults. Testnet is the only broadcast path enabled by
+# default. Mainnet requires an explicit production environment decision.
+TRON_TESTNET_RPC_URL = env_str(
+    "TRON_TESTNET_RPC_URL",
+    default="https://api.shasta.trongrid.io",
+)
+TRON_TESTNET_USDT_CONTRACT_ADDRESS = env_str(
+    "TRON_TESTNET_USDT_CONTRACT_ADDRESS",
+    default="",
+)
+TRON_TESTNET_BROADCAST_ENABLED = env_bool(
+    "TRON_TESTNET_BROADCAST_ENABLED",
+    default=True,
+)
+TRON_MAINNET_BROADCAST_ENABLED = env_bool(
+    "TRON_MAINNET_BROADCAST_ENABLED",
+    default=False,
+)
+TRON_TRX_FEE_RESERVE = env_str("TRON_TRX_FEE_RESERVE", default="1.100000")
+TRON_USDT_MIN_FEE_RESERVE = env_str("TRON_USDT_MIN_FEE_RESERVE", default="30")
+TRON_ENERGY_PRICE_SUN = env_int("TRON_ENERGY_PRICE_SUN", default=420)
+TRON_FEE_SAFETY_MULTIPLIER = env_str("TRON_FEE_SAFETY_MULTIPLIER", default="1.20")
+
 
 # ============================================================================
 # BLOCKCHAIN CONNECTION LIMITS

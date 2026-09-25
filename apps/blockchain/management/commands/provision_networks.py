@@ -70,6 +70,25 @@ NETWORKS = [
             },
         ],
     },
+    {
+        "name": "TRON Shasta Testnet",
+        "slug": "tron-shasta-testnet",
+        "symbol": "TRX",
+        "chain_id": None,
+        "is_testnet": True,
+        "is_active": True,
+        "assets": [
+            {
+                "symbol": "TRX",
+                "name": "TRON Test TRX",
+                "token_standard": Asset.TokenStandard.NATIVE,
+                "contract_address": "",
+                "decimals": 6,
+                "is_native": True,
+                "is_active": True,
+            },
+        ],
+    },
 ]
 
 

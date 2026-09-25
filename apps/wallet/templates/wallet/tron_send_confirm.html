@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Final TRON Confirmation | HappyWallet{% endblock %}
+{% block content %}
+<main class="container py-4" style="max-width:800px">
+  <h1>Final confirmation</h1>
+  <div class="alert alert-danger"><strong>Irreversible transaction.</strong> Compare every value with the destination before authorizing.</div>
+  {% if mainnet_blocked %}<div class="alert alert-warning"><strong>Mainnet broadcast is disabled.</strong> This transaction cannot be sent unless <code>TRON_MAINNET_BROADCAST_ENABLED=True</code> is deliberately configured.</div>{% endif %}
+  <div class="card mb-4"><div class="card-body">
+    <dl class="row mb-0">
+      <dt class="col-sm-4">Network</dt><dd class="col-sm-8">{{ intent.network.name }}</dd>
+      <dt class="col-sm-4">Asset</dt><dd class="col-sm-8">{{ intent.asset }}</dd>
+      <dt class="col-sm-4">Amount</dt><dd class="col-sm-8">{{ intent.amount }}</dd>
+      <dt class="col-sm-4">From</dt><dd class="col-sm-8"><code>{{ intent.sender }}</code></dd>
+      <dt class="col-sm-4">Recipient</dt><dd class="col-sm-8"><code>{{ intent.recipient }}</code></dd>
+      <dt class="col-sm-4">Estimated maximum fee</dt><dd class="col-sm-8">{{ intent.estimated_fee_trx }} TRX</dd>
+      <dt class="col-sm-4">Estimated energy</dt><dd class="col-sm-8">{{ intent.estimated_energy }}</dd>
+      <dt class="col-sm-4">Expires</dt><dd class="col-sm-8">{{ intent.expires_at }}</dd>
+    </dl>
+  </div></div>
+  <form method="post" novalidate>{% csrf_token %}
+    {{ form.confirmation_token }}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="mb-3"><label class="form-label">Connected HappyWallet USB vault</label>
+      <select name="usb_device_id" class="form-select" required>
+        <option value="">Select connected vault</option>
+        {% for vault in usb_vaults %}<option value="{{ vault.device_id }}">{{ vault.label }} — {{ vault.vault_id|slice:":8" }}</option>{% endfor %}
+      </select>{{ form.usb_device_id.errors }}
+      {% if not usb_vaults %}<div class="text-danger mt-1">Connect the USB drive containing HappyWallet/wallet.vault and reload this page.</div>{% endif %}
+    </div>
+    <div class="mb-3"><label class="form-label">Wallet password</label>{{ form.password }}{{ form.password.errors }}</div>
+    <div class="form-check mb-3">{{ form.final_confirmation }} <label class="form-check-label" for="{{ form.final_confirmation.id_for_label }}">{{ form.final_confirmation.label }}</label>{{ form.final_confirmation.errors }}</div>
+    <button class="btn btn-danger" type="submit" {% if not usb_vaults or mainnet_blocked %}disabled{% endif %}>Sign locally and broadcast once</button>
+  </form>
+</main>
+{% endblock %}

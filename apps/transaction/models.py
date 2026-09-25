@@ -187,3 +187,66 @@ class Transaction(models.Model):
             f"{self.asset} "
             f"{self.status}"
         )
+
+
+class TronSendIntent(models.Model):
+    """Durable, unsigned TRON send request with replay protection."""
+
+    class Status(models.TextChoices):
+        PREPARED = "prepared", "Prepared"
+        BROADCASTING = "broadcasting", "Broadcasting"
+        SUBMITTED = "submitted", "Submitted"
+        OUTCOME_UNKNOWN = "outcome_unknown", "Outcome unknown"
+        REJECTED = "rejected", "Rejected"
+        EXPIRED = "expired", "Expired"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="tron_send_intents",
+    )
+    wallet = models.ForeignKey(
+        "wallet.Wallet",
+        on_delete=models.PROTECT,
+        related_name="tron_send_intents",
+    )
+    network = models.ForeignKey(
+        "blockchain.BlockchainNetwork",
+        on_delete=models.PROTECT,
+        related_name="tron_send_intents",
+    )
+    idempotency_key = models.UUIDField()
+    status = models.CharField(
+        max_length=24,
+        choices=Status.choices,
+        default=Status.PREPARED,
+        db_index=True,
+    )
+    asset = models.CharField(max_length=20)
+    sender = models.CharField(max_length=64)
+    recipient = models.CharField(max_length=64)
+    amount = models.DecimalField(max_digits=36, decimal_places=18)
+    estimated_fee_trx = models.DecimalField(max_digits=24, decimal_places=6)
+    estimated_energy = models.PositiveBigIntegerField(default=0)
+    unsigned_transaction = models.JSONField()
+    transaction_hash = models.CharField(max_length=64, blank=True, db_index=True)
+    error_code = models.CharField(max_length=80, blank=True)
+    error_message = models.CharField(max_length=255, blank=True)
+    expires_at = models.DateTimeField()
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "tron_send_intents"
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "idempotency_key"],
+                name="unique_tron_send_idempotency",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.asset} {self.amount} ({self.status})"

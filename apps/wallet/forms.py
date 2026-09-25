@@ -23,6 +23,7 @@ handled by the appropriate application/security services.
 from __future__ import annotations
 
 from django import forms
+import uuid
 
 
 # ============================================================================
@@ -151,6 +152,28 @@ class UnlockWalletForm(forms.Form):
     )
 
 
+class TronSendPrepareForm(forms.Form):
+    asset = forms.ChoiceField(choices=(("TRX", "TRX"), ("USDT", "USDT (TRC-20)")))
+    recipient = forms.CharField(max_length=64)
+    amount = forms.DecimalField(max_digits=36, decimal_places=6, min_value=0)
+    idempotency_key = forms.UUIDField(widget=forms.HiddenInput)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            self.initial["idempotency_key"] = uuid.uuid4()
+
+
+class TronSendConfirmForm(forms.Form):
+    confirmation_token = forms.CharField(widget=forms.HiddenInput)
+    usb_device_id = forms.CharField(max_length=255)
+    password = WalletPasswordField()
+    final_confirmation = forms.BooleanField(
+        label="I verified the network, recipient, asset, amount, and estimated fee.",
+        required=True,
+    )
+
+
 # ============================================================================
 # PUBLIC API
 # ============================================================================
@@ -160,4 +183,6 @@ __all__ = [
     "CreateWalletForm",
     "UnlockWalletForm",
     "WalletPasswordField",
+    "TronSendPrepareForm",
+    "TronSendConfirmForm",
 ]

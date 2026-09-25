@@ -1212,7 +1212,18 @@
 
                                 <div class="col-12 col-md-6">
 
-                                    {% if wallet_address and assets and not wallet_is_tron %}
+                                    {% if wallet_address and assets and wallet_is_tron %}
+
+                                        <a
+                                            href="{% url 'wallet:tron_send_prepare' wallet.pk %}"
+                                            class="btn btn-outline-primary action-button action-send w-100"
+                                        >
+                                            <div class="action-icon">↑</div>
+                                            <div class="fw-bold">Send</div>
+                                            <small class="text-muted">TRX and TRC-20 USDT</small>
+                                        </a>
+
+                                    {% elif wallet_address and assets %}
 
                                         <button
                                             type="button"
@@ -1257,11 +1268,7 @@
                                             </div>
 
                                             <small class="text-muted">
-                                                {% if wallet_is_tron %}
-                                                    TRON sending is disabled (read-only)
-                                                {% else %}
-                                                    No sendable asset available
-                                                {% endif %}
+                                                No sendable asset available
                                             </small>
 
                                         </button>

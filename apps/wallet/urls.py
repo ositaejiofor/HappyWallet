@@ -43,6 +43,10 @@ urlpatterns = [
         name="tron_usdt_receive_status",
     ),
 
+    path("<uuid:wallet_id>/send/tron/", views.tron_send_prepare, name="tron_send_prepare"),
+    path("send/tron/<uuid:intent_id>/confirm/", views.tron_send_confirm, name="tron_send_confirm"),
+    path("send/tron/<uuid:intent_id>/", views.tron_send_result, name="tron_send_result"),
+
     # ========================================================================
     # WALLET CREATION
     # ========================================================================

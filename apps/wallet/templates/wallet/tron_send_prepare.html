@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Prepare TRON Send | HappyWallet{% endblock %}
+{% block content %}
+<main class="container py-4" style="max-width:760px">
+  <a href="{% url 'wallet:home' %}?wallet={{ wallet.pk }}">← Back to wallet</a>
+  <h1 class="mt-3">Prepare TRON transaction</h1>
+  <p class="text-muted">The node will construct an unsigned transaction and estimate its resource cost. Nothing is signed or broadcast on this screen.</p>
+  <div class="alert {% if wallet.network.is_testnet %}alert-success{% else %}alert-warning{% endif %}">
+    <strong>{{ wallet.network.name }}</strong> —
+    {% if wallet.network.is_testnet %}testnet broadcast is available after final confirmation.{% else %}mainnet broadcast is disabled unless explicitly enabled in the environment.{% endif %}
+  </div>
+  <div class="card"><div class="card-body">
+    <p><strong>From:</strong> <code>{{ sender }}</code></p>
+    <form method="post" novalidate>{% csrf_token %}
+      {{ form.idempotency_key }}
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="mb-3"><label class="form-label">Asset</label>{{ form.asset }}{{ form.asset.errors }}</div>
+      <div class="mb-3"><label class="form-label">Recipient TRON address</label>{{ form.recipient }}{{ form.recipient.errors }}</div>
+      <div class="mb-3"><label class="form-label">Amount</label>{{ form.amount }}{{ form.amount.errors }}</div>
+      <button class="btn btn-primary" type="submit">Validate and estimate</button>
+    </form>
+  </div></div>
+</main>
+{% endblock %}
