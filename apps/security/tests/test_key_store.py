@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 import tempfile
+import errno
 from pathlib import Path
 from unittest.mock import patch
 
@@ -538,6 +539,31 @@ class KeyStoreTestCase(SimpleTestCase):
     # ==============================================================
     # TEMPORARY FILE SAFETY
     # ==============================================================
+
+    def test_create_falls_back_safely_when_hard_links_are_unsupported(
+        self,
+    ) -> None:
+        """FAT-style media should retain exclusive-create semantics."""
+
+        with patch(
+            "apps.security.key_store.os.link",
+            side_effect=OSError(errno.EPERM, "Hard links unsupported"),
+        ):
+            self.store.create(
+                self.secret,
+                self.password,
+            )
+
+        self.assertEqual(
+            self.store.open(self.password),
+            self.secret,
+        )
+
+        with self.assertRaises(FileExistsError):
+            self.store.create(
+                b"replacement must not overwrite",
+                self.password,
+            )
 
     def test_no_temporary_files_remain_after_create(
         self,

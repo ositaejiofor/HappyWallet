@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import errno
 import os
 import uuid
 from pathlib import Path
@@ -459,6 +460,24 @@ class KeyStore:
                     f"Vault already exists: {self.vault_path}"
                 ) from exc
 
+            except OSError as exc:
+                # FAT/exFAT removable media on Windows may not support
+                # hard links. Preserve create-if-absent semantics with an
+                # exclusive final-file create instead of weakening this to
+                # an overwrite-capable copy/replace operation.
+                unsupported = {
+                    errno.EPERM,
+                    errno.EXDEV,
+                    getattr(errno, "ENOTSUP", errno.EPERM),
+                    getattr(errno, "EOPNOTSUPP", errno.EPERM),
+                }
+                if exc.errno not in unsupported and getattr(exc, "winerror", None) not in {1, 50}:
+                    raise
+                self._exclusive_create(
+                    self.vault_path,
+                    payload,
+                )
+
         except FileExistsError:
             raise
 
@@ -528,6 +547,18 @@ class KeyStore:
             os.fsync(
                 handle.fileno(),
             )
+
+    @staticmethod
+    def _exclusive_create(
+        path: Path,
+        payload: bytes,
+    ) -> None:
+        """Create a final vault file once on media without hard links."""
+
+        with path.open("xb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
 
     def _temporary_path(self) -> Path:
         """
